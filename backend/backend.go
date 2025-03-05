@@ -15,6 +15,7 @@ type Client struct {
 	httpClient *http.Client
 	target     string
 	port       int
+	scheme     string
 	logger     *slog.Logger
 }
 
@@ -44,15 +45,34 @@ func New(logger *slog.Logger, target string, port int) *Client {
 		httpClient: httpClient,
 		target:     target,
 		port:       port,
+		scheme:     "https", // default scheme
 		logger:     logger.With("package", "backend"),
 	}
 }
 
+// SetScheme sets the scheme (http/https) to use for backend requests
+func (c *Client) SetScheme(scheme string) {
+	if scheme == "http" || scheme == "https" {
+		c.scheme = scheme
+	}
+}
+
+// GetScheme returns the current scheme
+func (c *Client) GetScheme() string {
+	return c.scheme
+}
+
 // Fetch fetches something from the backend.
 func (c *Client) Fetch(beReq *http.Request) (*http.Response, bool) {
+	// Set the URL scheme if not already set
+	if beReq.URL.Scheme == "" {
+		beReq.URL.Scheme = c.scheme
+	}
+
 	c.logger.Debug("fetching from backend",
 		"url", beReq.URL,
 		"host", beReq.Host,
+		"scheme", beReq.URL.Scheme,
 		"target", fmt.Sprintf("%s:%d", c.target, c.port))
 
 	beResp, err := c.httpClient.Do(beReq)

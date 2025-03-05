@@ -55,6 +55,8 @@ func TestFrontend(t *testing.T) {
 
 	// Create a real backend client pointing to our test server
 	b := backend.New(logger, host, port)
+	// Set the scheme to http since test servers run on http
+	b.SetScheme("http")
 	t.Logf("Test origin server running at %s:%d", host, port)
 
 	// Create a frontend with our backend and cache

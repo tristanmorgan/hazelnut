@@ -4,8 +4,9 @@ frontend:
   key: ""
 
 backend:
-  target: wwww.varnish-software.com:443
+  target: www.varnish-software.com:443
   timeout: 10s
+  scheme: https
 
 cache:
   maxobj: 1M

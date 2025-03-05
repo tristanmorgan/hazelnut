@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	_ "embed"
+	"flag"
 	"fmt"
 	"github.com/perbu/hazelnut/backend"
 	"github.com/perbu/hazelnut/cache"
+	"github.com/perbu/hazelnut/config"
 	"github.com/perbu/hazelnut/frontend"
 	"golang.org/x/sync/errgroup"
 	"io"
@@ -13,13 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-)
-
-const (
-	// DefaultMaxObj is the default maximum number of objects in the cache.
-	DefaultMaxObj = 1000 * 1000 // 1M objects
-	// DefaultMaxSize is the default maximum size of the cache.
-	DefaultMaxSize = 1000 * 1000 * 1000 // 1GB
 )
 
 //go:embed .version
@@ -36,23 +31,56 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	// Parse command line flags
+	var configPath string
+	fs := flag.NewFlagSet("hazelnut", flag.ExitOnError)
+	fs.SetOutput(stderr)
+	fs.StringVar(&configPath, "config", "config.yaml", "Path to configuration file")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("parsing flags: %w", err)
+	}
+
+	// Initialize logger
 	logger := slog.Default()
 	logger.Info("starting hazelnut", "version", embeddedVersion)
-	c, err := cache.New(DefaultMaxObj, DefaultMaxSize)
+
+	// Load configuration
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	logger.Info("configuration loaded", "path", configPath)
+
+	// Initialize cache
+	maxObj := cfg.Cache.GetMaxObjects()
+	maxSize := cfg.Cache.GetMaxSize()
+	logger.Info("initializing cache", "maxObjects", maxObj, "maxSize", maxSize)
+	c, err := cache.New(maxObj, maxSize)
 	if err != nil {
 		return fmt.Errorf("cache.New: %w", err)
 	}
-	b := backend.New(logger, "www.varnish-software.com", 443)
-	s := frontend.New(logger, c, b, ":8080")
-	// set up an errgroup to handle the running
+
+	// Initialize backend
+	backendHost, backendPort := cfg.Backend.ParseTarget()
+	logger.Info("initializing backend", "host", backendHost, "port", backendPort, "scheme", cfg.Backend.Scheme)
+	b := backend.New(logger, backendHost, backendPort)
+	// Set scheme in the backend
+	b.SetScheme(cfg.Backend.Scheme)
+
+	// Initialize frontend
+	listenAddr := cfg.Frontend.GetListenAddr()
+	logger.Info("initializing frontend", "listenAddr", listenAddr)
+	s := frontend.New(logger, c, b, listenAddr)
+
+	// Set up an errgroup to handle the running
 	eg := new(errgroup.Group)
 	eg.Go(func() error {
 		return s.Run(ctx)
 	})
-	// wait for the context to be done
+
+	// Wait for the context to be done
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("frontend.Run: %w", err)
 	}
 	return nil
-
 }

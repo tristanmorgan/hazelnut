@@ -47,6 +47,8 @@ func TestProxy(t *testing.T) {
 
 	// Configure the backend to point to our test server
 	b := backend.New(logger, host, port)
+	// Set the scheme to http since test servers run on http
+	b.SetScheme("http")
 
 	// Configure the frontend with our backend and cache
 	f := frontend.New(logger, c, b, "localhost:8080")

@@ -76,6 +76,7 @@ func makeKey(r *http.Request) []byte {
 
 // cacheable handles GET and HEAD requests, these can be cached and can have hits
 func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
+	t0 := time.Now()
 	key := makeKey(req)
 	obj, found := s.cache.Get(key)
 	if found {
@@ -83,6 +84,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 			resp.Header()[k] = v
 		}
 		resp.Header().Add("X-Cache", "hit")
+		resp.Header().Add("X-Cache-Latency", time.Since(t0).String())
 		resp.WriteHeader(http.StatusOK)
 		_, _ = resp.Write(obj.Body) // yolo
 		return
@@ -92,10 +94,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	// clear the URI:
 	beReq.RequestURI = ""
 
-	// Ensure we have a scheme and host in the URL for Go's http client
-	if beReq.URL.Scheme == "" {
-		beReq.URL.Scheme = "https"
-	}
+	// URL scheme will be set by the backend
 
 	// Use the Host header as the URL host if not already set
 	if beReq.URL.Host == "" {
@@ -127,12 +126,13 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	for k, v := range beResp.Header {
 		resp.Header()[k] = v
 	}
+	resp.Header().Add("X-Cache", "miss")
+	resp.Header().Add("X-Cache-Latency", time.Since(t0).String())
 	resp.WriteHeader(beResp.StatusCode)
 	if _, err := resp.Write(body); err != nil {
 		s.logger.Warn("write beResp.Body", "err", err)
 	}
 	// Add the X-Cache header to the response
-	resp.Header().Add("X-Cache", "miss")
 
 }
 
@@ -144,10 +144,7 @@ func (s *Server) defaultMethod(resp http.ResponseWriter, req *http.Request) {
 	// Clear the URI
 	beReq.RequestURI = ""
 
-	// Ensure we have a scheme and host in the URL for Go's http client
-	if beReq.URL.Scheme == "" {
-		beReq.URL.Scheme = "http"
-	}
+	// URL scheme will be set by the backend
 
 	// Use the Host header as the URL host if not already set
 	if beReq.URL.Host == "" {
