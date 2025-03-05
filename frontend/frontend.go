@@ -86,7 +86,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 			resp.Header()[k] = v
 		}
 		resp.Header().Add("X-Cache", "hit")
-		resp.Header().Add("X-Cache-Latency", time.Since(t0).String())
+		resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
 		resp.WriteHeader(http.StatusOK)
 		_, _ = resp.Write(obj.Body) // yolo
 		return
@@ -138,13 +138,26 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		resp.Header()[k] = v
 	}
 	resp.Header().Add("X-Cache", "miss")
-	resp.Header().Add("X-Cache-Latency", time.Since(t0).String())
+	resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
 	resp.WriteHeader(beResp.StatusCode)
 	if _, err := resp.Write(body); err != nil {
 		s.logger.Warn("write beResp.Body", "err", err)
 	}
 	// Add the X-Cache header to the response
 
+}
+
+// asciiFormat returns a human-readable string representation of a duration in ASCII format (header-safe)
+func asciiFormat(since time.Duration) string {
+	if since > time.Second {
+		return fmt.Sprintf("%.3fs", since.Seconds())
+	} else if since > time.Millisecond {
+		return fmt.Sprintf("%.3fms", float64(since.Microseconds())/1000.0)
+	} else if since > time.Microsecond {
+		return fmt.Sprintf("%.3fus", float64(since.Nanoseconds())/1000.0)
+	} else {
+		return fmt.Sprintf("%.3dns", since.Nanoseconds())
+	}
 }
 
 // defaultMethod handles all other requests
