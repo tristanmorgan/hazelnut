@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/perbu/hazelnut/config"
 	"github.com/perbu/hazelnut/server"
 )
 
@@ -37,10 +38,24 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("parsing flags: %w", err)
 	}
 
-	// Initialize logger
-	logger := slog.Default()
-	logger.Info("starting hazelnut", "version", embeddedVersion)
+	// Load configuration first to get log level
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
 
-	// Use the server package to load config and run the server
-	return server.LoadAndRun(ctx, configPath, logger, stdout, stderr)
+	// Initialize logger with configured log level
+	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: cfg.GetLogLevel(),
+	})
+	logger := slog.New(handler)
+	logger.Info("starting hazelnut", "version", embeddedVersion, "logLevel", cfg.LogLevel)
+
+	// Use the server package to run the server with loaded config
+	srv, err := server.New(ctx, cfg, logger)
+	if err != nil {
+		return fmt.Errorf("creating server: %w", err)
+	}
+
+	return srv.Run(ctx)
 }

@@ -11,3 +11,6 @@ backend:
 cache:
   maxobj: 1M
   maxcost: 1G
+
+# Log level can be: debug, info, warn, error
+loglevel: warn

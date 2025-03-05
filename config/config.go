@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ type Config struct {
 	Backend  BackendConfig  `yaml:"backend"`
 	Frontend FrontendConfig `yaml:"frontend"`
 	Cache    CacheConfig    `yaml:"cache"`
+	LogLevel string         `yaml:"loglevel"`
 }
 
 // BackendConfig contains backend-specific configuration
@@ -91,6 +93,22 @@ func (cc *CacheConfig) GetMaxSize() int64 {
 	return ParseSize(cc.MaxCost)
 }
 
+// GetLogLevel returns the configured log level as a slog.Level
+func (c *Config) GetLogLevel() slog.Level {
+	switch strings.ToLower(c.LogLevel) {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
 // LoadConfig loads configuration from a YAML file
 func LoadConfig(path string) (*Config, error) {
 	// Set default values
@@ -107,6 +125,7 @@ func LoadConfig(path string) (*Config, error) {
 			MaxObj:  "1M",
 			MaxCost: "1G",
 		},
+		LogLevel: "info",
 	}
 
 	// Read configuration file

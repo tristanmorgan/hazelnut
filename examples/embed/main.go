@@ -14,16 +14,6 @@ import (
 )
 
 func main() {
-	// Set up a logger
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
-	logger := slog.New(handler)
-
-	// Create context with signal handling
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
 	// Create a configuration programmatically
 	cfg := &config.Config{
 		Backend: config.BackendConfig{
@@ -38,7 +28,18 @@ func main() {
 			MaxObj:  "1M",
 			MaxCost: "1G",
 		},
+		LogLevel: "debug", // Set custom log level in the embedded example
 	}
+
+	// Set up a logger with the log level from config
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: cfg.GetLogLevel(),
+	})
+	logger := slog.New(handler)
+
+	// Create context with signal handling
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 
 	// Create a new Hazelnut server
 	hazelnut, err := server.New(ctx, cfg, logger)

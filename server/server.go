@@ -83,6 +83,14 @@ func LoadAndRun(ctx context.Context, configPath string, logger *slog.Logger, std
 		return fmt.Errorf("loading config: %w", err)
 	}
 
+	// If no logger is provided, create one with the configured log level
+	if logger == nil {
+		handler := slog.NewTextHandler(stderr, &slog.HandlerOptions{
+			Level: cfg.GetLogLevel(),
+		})
+		logger = slog.New(handler)
+	}
+
 	// Create and run server
 	srv, err := New(ctx, cfg, logger)
 	if err != nil {
