@@ -10,7 +10,10 @@ import (
 	"github.com/perbu/hazelnut/cache"
 	"github.com/perbu/hazelnut/config"
 	"github.com/perbu/hazelnut/frontend"
+	"github.com/perbu/hazelnut/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
+	"net/http"
 )
 
 // Server represents a Hazelnut server instance
@@ -20,6 +23,7 @@ type Server struct {
 	Cache    *cache.Store
 	Backend  *backend.Client
 	Frontend *frontend.Server
+	Metrics  *metrics.Metrics
 }
 
 // New creates a new Hazelnut server with the provided configuration
@@ -29,6 +33,10 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	}
 
 	logger.Info("initializing hazelnut server")
+
+	// Initialize metrics
+	logger.Info("initializing metrics")
+	m := metrics.New()
 
 	// Initialize cache
 	maxObj := cfg.Cache.GetMaxObjects()
@@ -48,7 +56,38 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	// Initialize frontend
 	listenAddr := cfg.Frontend.GetListenAddr()
 	logger.Info("initializing frontend", "listenAddr", listenAddr)
-	f := frontend.New(logger, c, b, listenAddr)
+	f := frontend.New(logger, c, b, listenAddr, m)
+
+	// Create metrics HTTP server with a separate mux
+	metricsAddr := ":9091" // Default metrics port
+	if cfg.Frontend.MetricsPort != 0 {
+		metricsAddr = fmt.Sprintf(":%d", cfg.Frontend.MetricsPort)
+	}
+
+	// Skip starting metrics server in test environment
+	if metricsAddr != ":0" {
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", promhttp.Handler())
+
+		metricsServer := &http.Server{
+			Addr:    metricsAddr,
+			Handler: metricsMux,
+		}
+
+		go func() {
+			logger.Info("starting metrics server", "addr", metricsAddr)
+			if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Error("metrics server failed", "error", err)
+			}
+		}()
+
+		// Ensure metrics server shuts down when context is done
+		go func() {
+			<-ctx.Done()
+			logger.Info("shutting down metrics server")
+			_ = metricsServer.Shutdown(context.Background())
+		}()
+	}
 
 	return &Server{
 		Config:   cfg,
@@ -56,6 +95,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		Cache:    c,
 		Backend:  b,
 		Frontend: f,
+		Metrics:  m,
 	}, nil
 }
 

@@ -9,6 +9,7 @@ Hazelnut is a lightweight caching reverse proxy written in Go. It can be used as
 - Support for both HTTP and HTTPS
 - High-performance Ristretto-based cache
 - Simple configuration via YAML
+- Prometheus metrics for monitoring cache performance
 
 ## Usage
 
@@ -42,6 +43,7 @@ cfg := &config.Config{
     },
     Frontend: config.FrontendConfig{
         Port: 8080,
+        MetricsPort: 9091,
     },
     Cache: config.CacheConfig{
         MaxObj:  "1M",
@@ -61,6 +63,23 @@ go hazelnut.Run(ctx)
 
 See the `examples` directory for more detailed examples.
 
+## Metrics
+
+Hazelnut exposes Prometheus metrics at `/metrics` on the configured metrics port (default: 9091):
+
+- `hazelnut_cache_hits_total`: Counter for the total number of cache hits
+- `hazelnut_cache_misses_total`: Counter for the total number of cache misses
+- `hazelnut_errors_total`: Counter for the total number of errors
+
+You can configure these metrics in Prometheus by adding the following to your `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'hazelnut'
+    static_configs:
+      - targets: ['localhost:9091']
+```
+
 ## Configuration
 
 Configuration is done via YAML file:
@@ -68,6 +87,7 @@ Configuration is done via YAML file:
 ```yaml
 frontend:
   port: 8080
+  metricsport: 9091  # Port for Prometheus metrics (optional)
   cert: ""  # TLS cert file (optional)
   key: ""   # TLS key file (optional)
 

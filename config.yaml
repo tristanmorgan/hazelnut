@@ -1,5 +1,6 @@
 frontend:
   port: 8080
+  metricsport: 9091
   cert: ""
   key: ""
 

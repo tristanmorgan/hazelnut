@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/perbu/hazelnut/backend"
 	"github.com/perbu/hazelnut/cache"
+	"github.com/perbu/hazelnut/metrics"
 	"io"
 	"log/slog"
 	"net/http"
@@ -25,13 +26,15 @@ type Server struct {
 	srv     *http.Server
 	handler http.Handler
 	logger  *slog.Logger
+	metrics *metrics.Metrics
 }
 
-func New(logger *slog.Logger, cache *cache.Store, backend *backend.Client, addr string) *Server {
+func New(logger *slog.Logger, cache *cache.Store, backend *backend.Client, addr string, metrics *metrics.Metrics) *Server {
 	s := &Server{
 		cache:   cache,
 		backend: backend,
 		logger:  logger.With("package", "frontend"),
+		metrics: metrics,
 	}
 	s.srv = &http.Server{
 		Addr:    addr,
@@ -82,6 +85,9 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	key := makeKey(req)
 	obj, found := s.cache.Get(key)
 	if found {
+		// Increment cache hit counter
+		s.metrics.CacheHits.Inc()
+
 		for k, v := range obj.Headers {
 			resp.Header()[k] = v
 		}
@@ -91,6 +97,10 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		_, _ = resp.Write(obj.Body) // yolo
 		return
 	}
+
+	// Increment cache miss counter
+	s.metrics.CacheMisses.Inc()
+
 	// cache miss. fetch from backend
 	beReq := req.Clone(context.Background())
 	// clear the URI:
@@ -108,6 +118,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	defer beResp.Body.Close()
 	body, err := io.ReadAll(beResp.Body)
 	if err != nil {
+		s.metrics.Errors.Inc()
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -141,10 +152,10 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
 	resp.WriteHeader(beResp.StatusCode)
 	if _, err := resp.Write(body); err != nil {
+		s.metrics.Errors.Inc()
 		s.logger.Warn("write beResp.Body", "err", err)
 	}
 	// Add the X-Cache header to the response
-
 }
 
 // asciiFormat returns a human-readable string representation of a duration in ASCII format (header-safe)
@@ -183,6 +194,7 @@ func (s *Server) defaultMethod(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(beResp.StatusCode)
 	n, err := io.Copy(resp, beResp.Body)
 	if err != nil {
+		s.metrics.Errors.Inc()
 		s.logger.Warn("write beResp.Body", "err", err)
 	}
 	s.logger.Info("defaultMethod", "bytes", n)

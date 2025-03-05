@@ -14,6 +14,7 @@ import (
 	"github.com/perbu/hazelnut/backend"
 	"github.com/perbu/hazelnut/cache"
 	"github.com/perbu/hazelnut/frontend"
+	"github.com/perbu/hazelnut/metrics"
 )
 
 func TestProxy(t *testing.T) {
@@ -50,8 +51,11 @@ func TestProxy(t *testing.T) {
 	// Set the scheme to http since test servers run on http
 	b.SetScheme("http")
 
+	// Create metrics
+	m := metrics.New()
+
 	// Configure the frontend with our backend and cache
-	f := frontend.New(logger, c, b, "localhost:8080")
+	f := frontend.New(logger, c, b, "localhost:8080", m)
 
 	// Start the proxy server
 	proxyServer := httptest.NewServer(f)

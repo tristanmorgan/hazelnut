@@ -12,6 +12,7 @@ import (
 
 	"github.com/perbu/hazelnut/backend"
 	"github.com/perbu/hazelnut/cache"
+	"github.com/perbu/hazelnut/metrics"
 )
 
 func TestFrontend(t *testing.T) {
@@ -59,8 +60,11 @@ func TestFrontend(t *testing.T) {
 	b.SetScheme("http")
 	t.Logf("Test origin server running at %s:%d", host, port)
 
+	// Create metrics
+	m := metrics.New()
+
 	// Create a frontend with our backend and cache
-	f := New(logger, c, b, "localhost:8080")
+	f := New(logger, c, b, "localhost:8080", m)
 
 	// Create a test server with our frontend as handler
 	ts := httptest.NewServer(f)

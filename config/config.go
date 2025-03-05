@@ -44,9 +44,10 @@ func (bc *BackendConfig) ParseTarget() (string, int) {
 
 // FrontendConfig contains frontend-specific configuration
 type FrontendConfig struct {
-	Port int    `yaml:"port"`
-	Cert string `yaml:"cert"`
-	Key  string `yaml:"key"`
+	Port        int    `yaml:"port"`
+	MetricsPort int    `yaml:"metricsport"`
+	Cert        string `yaml:"cert"`
+	Key         string `yaml:"key"`
 }
 
 // GetListenAddr returns the formatted listen address
@@ -119,7 +120,8 @@ func LoadConfig(path string) (*Config, error) {
 			Scheme:  "https",
 		},
 		Frontend: FrontendConfig{
-			Port: 8080,
+			Port:        8080,
+			MetricsPort: 9091,
 		},
 		Cache: CacheConfig{
 			MaxObj:  "1M",

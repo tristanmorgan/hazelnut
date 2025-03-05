@@ -45,7 +45,8 @@ func TestServer(t *testing.T) {
 			Scheme:  "http", // Use HTTP for tests
 		},
 		Frontend: config.FrontendConfig{
-			Port: 8080,
+			Port:        8080,
+			MetricsPort: 0, // Disable metrics in tests
 		},
 		Cache: config.CacheConfig{
 			MaxObj:  "100",
@@ -119,7 +120,8 @@ func TestServerConfig(t *testing.T) {
 			Scheme:  "https",
 		},
 		Frontend: config.FrontendConfig{
-			Port: 8080,
+			Port:        8080,
+			MetricsPort: 0, // Disable metrics in tests
 		},
 		Cache: config.CacheConfig{
 			MaxObj:  "100",
