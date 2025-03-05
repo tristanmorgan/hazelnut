@@ -30,6 +30,7 @@ func New(logger *slog.Logger, target string, port int) *Client {
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			// Instead of using the provided addr, use our target.
 			fixedAddr := fmt.Sprintf("%s:%d", target, port)
+			logger.Info("dialing backend", "addr", fixedAddr)
 			return dialer.DialContext(ctx, network, fixedAddr)
 		},
 	}

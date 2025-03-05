@@ -94,7 +94,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 
 	// Ensure we have a scheme and host in the URL for Go's http client
 	if beReq.URL.Scheme == "" {
-		beReq.URL.Scheme = "http"
+		beReq.URL.Scheme = "https"
 	}
 
 	// Use the Host header as the URL host if not already set

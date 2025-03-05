@@ -1,0 +1,12 @@
+frontend:
+  port: 8080
+  cert: ""
+  key: ""
+
+backend:
+  target: wwww.varnish-software.com:443
+  timeout: 10s
+
+cache:
+  maxobj: 1M
+  maxcost: 1G
