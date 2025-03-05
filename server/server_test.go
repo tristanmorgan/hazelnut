@@ -37,7 +37,8 @@ func TestServer(t *testing.T) {
 	}
 	t.Logf("Test origin server running at %s:%d", host, port)
 
-	// Create a test configuration
+	// Create a test configuration with a random port
+	// Using port 0 lets the system allocate an available port
 	cfg := &config.Config{
 		Backend: config.BackendConfig{
 			Target:  fmt.Sprintf("%s:%d", host, port),
@@ -45,7 +46,7 @@ func TestServer(t *testing.T) {
 			Scheme:  "http", // Use HTTP for tests
 		},
 		Frontend: config.FrontendConfig{
-			Port:        8080,
+			Port:        0, // Use port 0 to get a random available port
 			MetricsPort: 0, // Disable metrics in tests
 		},
 		Cache: config.CacheConfig{
@@ -54,56 +55,46 @@ func TestServer(t *testing.T) {
 		},
 	}
 
-	// Create a server instance
+	// Instead of starting the full server, we'll create a test handler
+	// Create a server instance to get our handler
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Create the server components (backend, cache, etc.)
 	srv, err := New(ctx, cfg, logger)
 	if err != nil {
 		t.Fatalf("Failed to create server: %v", err)
 	}
 
-	// Start the server in a goroutine
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- srv.Run(ctx)
-	}()
+	// Instead of starting the full server, create a test server with the same handler
+	testServer := httptest.NewServer(srv.Frontend)
+	defer testServer.Close()
 
-	// Give the server a moment to start
-	time.Sleep(100 * time.Millisecond)
+	t.Logf("Test hazelnut server running at %s", testServer.URL)
 
 	// Create a test request
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://localhost:8080/test-path", nil)
+	req, err := http.NewRequest("GET", testServer.URL+"/test-path", nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
-	req.Host = "example.com"
+	req.Host = "example.com" // Set the host header for testing
 
 	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
-		// This is expected since we're not actually listening on port 8080
-		t.Logf("Expected connection error: %v", err)
-	} else {
-		defer resp.Body.Close()
-		// If by chance it worked, validate the response
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("Expected status OK, got %v", resp.Status)
-		}
+		t.Fatalf("Failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Validate the response
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status OK, got %v", resp.Status)
 	}
 
-	// Cancel the context to stop the server
-	cancel()
-
-	// Check if the server returned an error
-	select {
-	case err := <-errCh:
-		if err != nil && err.Error() != "frontend.Run: ListenAndServe: context canceled" {
-			t.Errorf("Server returned unexpected error: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Error("Server didn't shut down within timeout")
+	// Check for cache-related headers
+	if resp.Header.Get("X-Cache") != "miss" {
+		t.Errorf("Expected X-Cache: miss, got %v", resp.Header.Get("X-Cache"))
 	}
 }
 
@@ -112,7 +103,7 @@ func TestServerConfig(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ctx := context.Background()
 
-	// Create a simple config
+	// Create a simple config with port 0 (random port)
 	cfg := &config.Config{
 		Backend: config.BackendConfig{
 			Target:  "example.com:443",
@@ -120,7 +111,7 @@ func TestServerConfig(t *testing.T) {
 			Scheme:  "https",
 		},
 		Frontend: config.FrontendConfig{
-			Port:        8080,
+			Port:        0, // Use random port
 			MetricsPort: 0, // Disable metrics in tests
 		},
 		Cache: config.CacheConfig{
@@ -140,7 +131,9 @@ func TestServerConfig(t *testing.T) {
 		t.Errorf("Expected backend scheme to be https, got %s", srv.Backend.GetScheme())
 	}
 
-	if srv.Config.Frontend.Port != 8080 {
-		t.Errorf("Expected frontend port to be 8080, got %d", srv.Config.Frontend.Port)
+	// We don't check for a specific port anymore since we're using port 0
+	// Instead we ensure that the configuration was properly passed to the server
+	if srv.Config.Frontend.Port != cfg.Frontend.Port {
+		t.Errorf("Expected frontend port to match configuration, got %d", srv.Config.Frontend.Port)
 	}
 }

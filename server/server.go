@@ -99,6 +99,11 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	}, nil
 }
 
+// GetActualPort returns the actual port the server is listening on
+func (s *Server) GetActualPort() int {
+	return s.Frontend.ActualPort()
+}
+
 // Run starts the Hazelnut server and blocks until the context is canceled
 func (s *Server) Run(ctx context.Context) error {
 	eg := new(errgroup.Group)

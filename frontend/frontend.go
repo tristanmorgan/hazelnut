@@ -11,6 +11,7 @@ import (
 	"github.com/perbu/hazelnut/metrics"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,13 +45,34 @@ func New(logger *slog.Logger, cache *cache.Store, backend *backend.Client, addr 
 	return s
 }
 
-func (s *Server) Run(ctx context.Context) error {
+// ActualPort returns the actual port the server is listening on.
+// Only works after server is started and when using port 0 to get a random port.
+func (s *Server) ActualPort() int {
+	if s.srv == nil || s.srv.Addr == "" {
+		return 0
+	}
 
+	// If the server has a listener, get the actual port
+	if listener := s.srv.BaseContext; listener != nil {
+		if addr, ok := s.srv.BaseContext(nil).Value(http.LocalAddrContextKey).(net.Addr); ok {
+			if tcpAddr, ok := addr.(*net.TCPAddr); ok {
+				return tcpAddr.Port
+			}
+		}
+	}
+
+	return 0
+}
+
+func (s *Server) Run(ctx context.Context) error {
+	// Setup server shutdown when context is done
 	go func() {
 		<-ctx.Done()
 		s.logger.Info("shutting down server")
 		_ = s.srv.Shutdown(ctx)
 	}()
+
+	// Start the server
 	if err := s.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("ListenAndServe: %w", err)
 	}
@@ -105,6 +127,11 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	beReq := req.Clone(context.Background())
 	// clear the URI:
 	beReq.RequestURI = ""
+
+	// If original request is HEAD, convert to GET for backend fetch
+	if req.Method == http.MethodHead {
+		beReq.Method = http.MethodGet
+	}
 
 	// URL scheme will be set by the backend
 
@@ -192,12 +219,14 @@ func (s *Server) defaultMethod(resp http.ResponseWriter, req *http.Request) {
 		resp.Header()[k] = v
 	}
 	resp.WriteHeader(beResp.StatusCode)
-	n, err := io.Copy(resp, beResp.Body)
-	if err != nil {
-		s.metrics.Errors.Inc()
-		s.logger.Warn("write beResp.Body", "err", err)
+	if req.Method != http.MethodHead {
+		n, err := io.Copy(resp, beResp.Body)
+		if err != nil {
+			s.metrics.Errors.Inc()
+			s.logger.Warn("write beResp.Body", "err", err)
+		}
+		s.logger.Info("body response written", "bytes", n)
 	}
-	s.logger.Info("defaultMethod", "bytes", n)
 }
 
 func versionString() string {
