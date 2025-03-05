@@ -13,4 +13,4 @@ cache:
   maxcost: 1G
 
 # Log level can be: debug, info, warn, error
-loglevel: warn
+loglevel: info
