@@ -2,6 +2,10 @@
 
 Hazelnut is a lightweight caching reverse proxy written in Go. It can be used as a standalone server or embedded into your Go applications.
 
+It is first and foremost meant to be embedded into tests in applications that expect a HTTP cache to be there.
+
+It might not be useful on its own.
+
 ## Features
 
 - HTTP caching based on standard Cache-Control headers
