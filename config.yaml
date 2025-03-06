@@ -1,13 +1,25 @@
 frontend:
-  port: 8080
+  port: 6000
   metricsport: 9091
   cert: ""
   key: ""
 
+# Default backend used when no virtual host matches
 backend:
-  target: www.varnish-software.com:443
+  target: localhost:8000
   timeout: 10s
-  scheme: https
+  scheme: http
+
+# Virtual host specific backends
+virtualhosts:
+  "example.com":
+    target: example-backend:8080
+    timeout: 10s
+    scheme: http
+  "api.example.com":
+    target: api-backend:8080
+    timeout: 5s
+    scheme: https
 
 cache:
   maxobj: 1M

@@ -8,8 +8,14 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
+
+// Fetcher is an interface that both Client and Router implement
+type Fetcher interface {
+	Fetch(req *http.Request) (*http.Response, bool)
+}
 
 type Client struct {
 	httpClient *http.Client
@@ -85,6 +91,55 @@ func (c *Client) Fetch(beReq *http.Request) (*http.Response, bool) {
 		return nuts(), false
 	}
 	return beResp, true
+}
+
+// Router manages multiple backend clients based on virtual hosts
+type Router struct {
+	defaultBackend *Client
+	backends       map[string]*Client
+	mu             sync.RWMutex
+	logger         *slog.Logger
+}
+
+// NewRouter creates a new backend router with the specified default backend
+func NewRouter(logger *slog.Logger, defaultBackend *Client) *Router {
+	return &Router{
+		defaultBackend: defaultBackend,
+		backends:       make(map[string]*Client),
+		logger:         logger.With("package", "backend.router"),
+	}
+}
+
+// AddBackend adds a backend for a specific virtual host
+func (r *Router) AddBackend(host string, backend *Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.backends[host] = backend
+	r.logger.Info("added backend for host", "host", host, "target", backend.target)
+}
+
+// GetBackend returns the backend for the specified host or the default backend if not found
+func (r *Router) GetBackend(host string) *Client {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if backend, exists := r.backends[host]; exists {
+		return backend
+	}
+	return r.defaultBackend
+}
+
+// Fetch routes the request to the appropriate backend based on the Host header
+func (r *Router) Fetch(beReq *http.Request) (*http.Response, bool) {
+	backend := r.GetBackend(beReq.Host)
+	r.logger.Debug("routing request", "host", beReq.Host, "backend", backend.target)
+	return backend.Fetch(beReq)
+}
+
+// GetScheme returns the scheme of the default backend
+// This is needed for compatibility with tests that access this method
+func (r *Router) GetScheme() string {
+	return r.defaultBackend.GetScheme()
 }
 
 func nuts() *http.Response {

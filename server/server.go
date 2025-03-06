@@ -21,7 +21,7 @@ type Server struct {
 	Config   *config.Config
 	Logger   *slog.Logger
 	Cache    *cache.Store
-	Backend  *backend.Client
+	Backend  *backend.Router
 	Frontend *frontend.Server
 	Metrics  *metrics.Metrics
 }
@@ -47,16 +47,33 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		return nil, fmt.Errorf("cache.New: %w", err)
 	}
 
-	// Initialize backend
+	// Initialize default backend
 	backendHost, backendPort := cfg.Backend.ParseTarget()
-	logger.Info("initializing backend", "host", backendHost, "port", backendPort, "scheme", cfg.Backend.Scheme)
-	b := backend.New(logger, backendHost, backendPort)
-	b.SetScheme(cfg.Backend.Scheme)
+	logger.Info("initializing default backend", "host", backendHost, "port", backendPort, "scheme", cfg.Backend.Scheme)
+	defaultBackend := backend.New(logger, backendHost, backendPort)
+	defaultBackend.SetScheme(cfg.Backend.Scheme)
+
+	// Create the backend router with the default backend
+	backendRouter := backend.NewRouter(logger, defaultBackend)
+
+	// Add virtual host backends if configured
+	for host, backendCfg := range cfg.VirtualHosts {
+		vHost, vPort := backendCfg.ParseTarget()
+		logger.Info("initializing virtual host backend",
+			"virtualHost", host,
+			"target", vHost,
+			"port", vPort,
+			"scheme", backendCfg.Scheme)
+
+		vBackend := backend.New(logger, vHost, vPort)
+		vBackend.SetScheme(backendCfg.Scheme)
+		backendRouter.AddBackend(host, vBackend)
+	}
 
 	// Initialize frontend
 	listenAddr := cfg.Frontend.GetListenAddr()
 	logger.Info("initializing frontend", "listenAddr", listenAddr)
-	f := frontend.New(logger, c, b, listenAddr, m)
+	f := frontend.New(logger, c, backendRouter, listenAddr, m)
 
 	// Create metrics HTTP server with a separate mux
 	metricsAddr := ":9091" // Default metrics port
@@ -93,7 +110,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		Config:   cfg,
 		Logger:   logger,
 		Cache:    c,
-		Backend:  b,
+		Backend:  backendRouter,
 		Frontend: f,
 		Metrics:  m,
 	}, nil

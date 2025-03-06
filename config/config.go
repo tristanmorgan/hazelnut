@@ -12,10 +12,11 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Backend  BackendConfig  `yaml:"backend"`
-	Frontend FrontendConfig `yaml:"frontend"`
-	Cache    CacheConfig    `yaml:"cache"`
-	LogLevel string         `yaml:"loglevel"`
+	Backend      BackendConfig            `yaml:"backend"`
+	VirtualHosts map[string]BackendConfig `yaml:"virtualhosts"`
+	Frontend     FrontendConfig           `yaml:"frontend"`
+	Cache        CacheConfig              `yaml:"cache"`
+	LogLevel     string                   `yaml:"loglevel"`
 }
 
 // BackendConfig contains backend-specific configuration

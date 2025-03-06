@@ -23,14 +23,14 @@ var embeddedVersion string
 
 type Server struct {
 	cache   *cache.Store
-	backend *backend.Client
+	backend backend.Fetcher
 	srv     *http.Server
 	handler http.Handler
 	logger  *slog.Logger
 	metrics *metrics.Metrics
 }
 
-func New(logger *slog.Logger, cache *cache.Store, backend *backend.Client, addr string, metrics *metrics.Metrics) *Server {
+func New(logger *slog.Logger, cache *cache.Store, backend backend.Fetcher, addr string, metrics *metrics.Metrics) *Server {
 	s := &Server{
 		cache:   cache,
 		backend: backend,
