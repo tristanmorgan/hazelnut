@@ -63,8 +63,8 @@ func TestFrontend(t *testing.T) {
 	// Create metrics
 	m := metrics.New()
 
-	// Create a frontend with our backend and cache
-	f := New(logger, c, b, "localhost:8080", m)
+	// Create a frontend with our backend and cache, not ignoring host by default
+	f := New(logger, c, b, "localhost:8080", m, false)
 
 	// Create a test server with our frontend as handler
 	ts := httptest.NewServer(f)
@@ -214,6 +214,52 @@ func TestFrontend(t *testing.T) {
 		// X-Cache should not be set for POST
 		if resp.Header.Get("X-Cache") != "" {
 			t.Errorf("Expected no X-Cache header for POST, got: %s", resp.Header.Get("X-Cache"))
+		}
+	})
+
+	t.Run("IgnoreHost option works correctly", func(t *testing.T) {
+		// Create a new frontend with ignoreHost = true
+		fIgnoreHost := New(logger, c, b, "localhost:8080", m, true)
+
+		// Create a test server with this frontend
+		tsIgnore := httptest.NewServer(fIgnoreHost)
+		defer tsIgnore.Close()
+
+		// First request with host1
+		req1, _ := http.NewRequest("GET", tsIgnore.URL+"/shared-path", nil)
+		req1.Host = "host1.example.com"
+
+		resp1, err := client.Do(req1)
+		if err != nil {
+			t.Fatalf("First request failed: %v", err)
+		}
+		defer resp1.Body.Close()
+
+		// Read body
+		body1, _ := io.ReadAll(resp1.Body)
+
+		// Small delay
+		time.Sleep(100 * time.Millisecond)
+
+		// Second request with different host but same path
+		req2, _ := http.NewRequest("GET", tsIgnore.URL+"/shared-path", nil)
+		req2.Host = "host2.example.com"
+
+		resp2, err := client.Do(req2)
+		if err != nil {
+			t.Fatalf("Second request failed: %v", err)
+		}
+		defer resp2.Body.Close()
+
+		// Should be a cache hit despite different host (because ignoreHost=true)
+		if resp2.Header.Get("X-Cache") != "hit" {
+			t.Errorf("Expected cache hit with ignoreHost=true, got: %s", resp2.Header.Get("X-Cache"))
+		}
+
+		// Bodies should match
+		body2, _ := io.ReadAll(resp2.Body)
+		if string(body1) != string(body2) {
+			t.Errorf("Response bodies should match when ignoreHost=true")
 		}
 	})
 }

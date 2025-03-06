@@ -58,8 +58,9 @@ func (fc *FrontendConfig) GetListenAddr() string {
 
 // CacheConfig contains cache-specific configuration
 type CacheConfig struct {
-	MaxObj  string `yaml:"maxobj"`
-	MaxCost string `yaml:"maxcost"`
+	MaxObj     string `yaml:"maxobj"`
+	MaxCost    string `yaml:"maxcost"`
+	IgnoreHost bool   `yaml:"ignorehost"` // When true, cache keys are generated without considering the host
 }
 
 // ParseSize parses a human-readable size into an int64
@@ -125,8 +126,9 @@ func LoadConfig(path string) (*Config, error) {
 			MetricsPort: 9091,
 		},
 		Cache: CacheConfig{
-			MaxObj:  "1M",
-			MaxCost: "1G",
+			MaxObj:     "1M",
+			MaxCost:    "1G",
+			IgnoreHost: false, // By default, consider the host in cache keys
 		},
 		LogLevel: "info",
 	}

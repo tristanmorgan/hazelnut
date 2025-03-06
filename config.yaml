@@ -24,6 +24,8 @@ virtualhosts:
 cache:
   maxobj: 1M
   maxcost: 1G
+  # When true, requests to different hosts but with the same path will use the same cache entry
+  ignorehost: false
 
 # Log level can be: debug, info, warn, error
 loglevel: info

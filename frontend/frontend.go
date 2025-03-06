@@ -22,26 +22,28 @@ import (
 var embeddedVersion string
 
 type Server struct {
-	cache   *cache.Store
-	backend backend.Fetcher
-	srv     *http.Server
-	handler http.Handler
-	logger  *slog.Logger
-	metrics *metrics.Metrics
+	cache      *cache.Store
+	backend    backend.Fetcher
+	srv        *http.Server
+	handler    http.Handler
+	logger     *slog.Logger
+	metrics    *metrics.Metrics
+	ignoreHost bool // Flag to determine if host should be ignored in cache keys
 }
 
-func New(logger *slog.Logger, cache *cache.Store, backend backend.Fetcher, addr string, metrics *metrics.Metrics) *Server {
+func New(logger *slog.Logger, cache *cache.Store, backend backend.Fetcher, addr string, metrics *metrics.Metrics, ignoreHost bool) *Server {
 	s := &Server{
-		cache:   cache,
-		backend: backend,
-		logger:  logger.With("package", "frontend"),
-		metrics: metrics,
+		cache:      cache,
+		backend:    backend,
+		logger:     logger.With("package", "frontend"),
+		metrics:    metrics,
+		ignoreHost: ignoreHost,
 	}
 	s.srv = &http.Server{
 		Addr:    addr,
 		Handler: s,
 	}
-	logger.Info("frontend configured", "addr", addr)
+	logger.Info("frontend configured", "addr", addr, "ignoreHost", ignoreHost)
 	return s
 }
 
@@ -92,19 +94,26 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	s.logger.Info("request", "method", req.Method, "path", req.URL.Path, "duration", time.Since(t0))
 }
 
-// makeKey takes a http.Request and returns a 32 byte sha256 hash of the
-// host and path of the request.
-func makeKey(r *http.Request) []byte {
+// makeKey takes a http.Request and a flag indicating whether to ignore the host,
+// and returns a 32 byte sha256 hash of the request.
+func makeKey(r *http.Request, ignoreHost bool) []byte {
 	sh := sha256.New()
-	_, _ = sh.Write([]byte(r.Host))
+
+	// Only include the host in the key if we're not ignoring it
+	if !ignoreHost {
+		_, _ = sh.Write([]byte(r.Host))
+	}
+
+	// Always include the path in the key
 	_, _ = sh.Write([]byte(r.URL.Path))
+
 	return sh.Sum(nil)
 }
 
 // cacheable handles GET and HEAD requests, these can be cached and can have hits
 func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	t0 := time.Now()
-	key := makeKey(req)
+	key := makeKey(req, s.ignoreHost)
 	obj, found := s.cache.Get(key)
 	if found {
 		// Increment cache hit counter

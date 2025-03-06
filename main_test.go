@@ -55,7 +55,7 @@ func TestProxy(t *testing.T) {
 	m := metrics.New()
 
 	// Configure the frontend with our backend and cache
-	f := frontend.New(logger, c, b, "localhost:8080", m)
+	f := frontend.New(logger, c, b, "localhost:8080", m, false)
 
 	// Start the proxy server
 	proxyServer := httptest.NewServer(f)

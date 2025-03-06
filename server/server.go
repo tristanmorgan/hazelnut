@@ -72,8 +72,8 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Initialize frontend
 	listenAddr := cfg.Frontend.GetListenAddr()
-	logger.Info("initializing frontend", "listenAddr", listenAddr)
-	f := frontend.New(logger, c, backendRouter, listenAddr, m)
+	logger.Info("initializing frontend", "listenAddr", listenAddr, "ignoreHost", cfg.Cache.IgnoreHost)
+	f := frontend.New(logger, c, backendRouter, listenAddr, m, cfg.Cache.IgnoreHost)
 
 	// Create metrics HTTP server with a separate mux
 	metricsAddr := ":9091" // Default metrics port
