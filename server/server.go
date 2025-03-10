@@ -48,10 +48,10 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	}
 
 	// Initialize default backend
-	backendHost, backendPort := cfg.Backend.ParseTarget()
-	logger.Info("initializing default backend", "host", backendHost, "port", backendPort, "scheme", cfg.Backend.Scheme)
+	backendHost, backendPort := cfg.DefaultBackend.ParseTarget()
+	logger.Info("initializing default backend", "host", backendHost, "port", backendPort, "scheme", cfg.DefaultBackend.Scheme)
 	defaultBackend := backend.New(logger, backendHost, backendPort)
-	defaultBackend.SetScheme(cfg.Backend.Scheme)
+	defaultBackend.SetScheme(cfg.DefaultBackend.Scheme)
 
 	// Create the backend router with the default backend
 	backendRouter := backend.NewRouter(logger, defaultBackend)

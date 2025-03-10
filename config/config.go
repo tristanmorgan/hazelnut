@@ -2,21 +2,25 @@ package config
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 // Config represents the application configuration
 type Config struct {
-	Backend      BackendConfig            `yaml:"backend"`
-	VirtualHosts map[string]BackendConfig `yaml:"virtualhosts"`
-	Frontend     FrontendConfig           `yaml:"frontend"`
-	Cache        CacheConfig              `yaml:"cache"`
-	LogLevel     string                   `yaml:"loglevel"`
+	DefaultBackend BackendConfig            `yaml:"default_backend"`
+	VirtualHosts   map[string]BackendConfig `yaml:"virtualhosts"`
+	Frontend       FrontendConfig           `yaml:"frontend"`
+	Cache          CacheConfig              `yaml:"cache"`
+	Logging        LoggingConfig            `yaml:"logging"`
+}
+
+type LoggingConfig struct {
+	Level  string `yaml:"level"`  // debug,info,warn,error
+	Format string `yaml:"format"` // json or text
 }
 
 // BackendConfig contains backend-specific configuration
@@ -98,7 +102,7 @@ func (cc *CacheConfig) GetMaxSize() int64 {
 
 // GetLogLevel returns the configured log level as a slog.Level
 func (c *Config) GetLogLevel() slog.Level {
-	switch strings.ToLower(c.LogLevel) {
+	switch strings.ToLower(c.Logging.Level) {
 	case "debug":
 		return slog.LevelDebug
 	case "info":
@@ -116,7 +120,7 @@ func (c *Config) GetLogLevel() slog.Level {
 func LoadConfig(path string) (*Config, error) {
 	// Set default values
 	cfg := &Config{
-		Backend: BackendConfig{
+		DefaultBackend: BackendConfig{
 			Target:  "www.varnish-software.com:443",
 			Timeout: 30 * time.Second,
 			Scheme:  "https",
@@ -130,7 +134,10 @@ func LoadConfig(path string) (*Config, error) {
 			MaxCost:    "1G",
 			IgnoreHost: false, // By default, consider the host in cache keys
 		},
-		LogLevel: "info",
+		Logging: LoggingConfig{
+			Level:  "info",
+			Format: "text",
+		},
 	}
 
 	// Read configuration file

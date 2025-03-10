@@ -76,9 +76,8 @@ func (c *Client) Fetch(beReq *http.Request) (*http.Response, bool) {
 	}
 
 	c.logger.Debug("fetching from backend",
-		"url", beReq.URL,
+		"url", beReq.URL.String(),
 		"host", beReq.Host,
-		"scheme", beReq.URL.Scheme,
 		"target", fmt.Sprintf("%s:%d", c.target, c.port))
 
 	beResp, err := c.httpClient.Do(beReq)

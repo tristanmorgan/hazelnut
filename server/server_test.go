@@ -40,7 +40,7 @@ func TestServer(t *testing.T) {
 	// Create a test configuration with a random port
 	// Using port 0 lets the system allocate an available port
 	cfg := &config.Config{
-		Backend: config.BackendConfig{
+		DefaultBackend: config.BackendConfig{
 			Target:  fmt.Sprintf("%s:%d", host, port),
 			Timeout: 30 * time.Second,
 			Scheme:  "http", // Use HTTP for tests
@@ -105,7 +105,7 @@ func TestServerConfig(t *testing.T) {
 
 	// Create a simple config with port 0 (random port)
 	cfg := &config.Config{
-		Backend: config.BackendConfig{
+		DefaultBackend: config.BackendConfig{
 			Target:  "example.com:443",
 			Timeout: 30 * time.Second,
 			Scheme:  "https",

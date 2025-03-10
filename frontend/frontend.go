@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,10 @@ import (
 
 //go:embed .version
 var embeddedVersion string
+
+const (
+	defaultTTL = 5 * time.Minute
+)
 
 type Server struct {
 	cache      *cache.Store
@@ -49,6 +54,7 @@ func New(logger *slog.Logger, cache *cache.Store, backend backend.Fetcher, addr 
 
 // ActualPort returns the actual port the server is listening on.
 // Only works after server is started and when using port 0 to get a random port.
+// this is useful for testing when the server is started with port 0.
 func (s *Server) ActualPort() int {
 	if s.srv == nil || s.srv.Addr == "" {
 		return 0
@@ -126,6 +132,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
 		resp.WriteHeader(http.StatusOK)
 		_, _ = resp.Write(obj.Body) // yolo
+		s.logger.Info("cache hit", "key", key, "duration", time.Since(t0), "path", req.URL.Path, "ignoreHost", s.ignoreHost)
 		return
 	}
 
@@ -158,6 +165,9 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// body dump for debugging purposes:
+	_, _ = fmt.Fprintln(os.Stdout, string(body))
+
 	// clean up headers before inserting into cache:
 	for _, h := range headerDenyList() {
 		beResp.Header.Del(h)
@@ -174,11 +184,12 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		// Calculate cache TTL based on response headers
 		ttl := calculateTTL(beResp.Header)
 		if ttl > 0 {
-			s.logger.Debug("caching response with TTL", "ttl", ttl.String())
 			resp.Header().Add("X-Cache-TTL", ttl.String())
+			s.cache.Set(key, objCore)
+			s.logger.Debug("caching response with TTL", "ttl", ttl.String(), "contentLength", len(body))
+		} else {
+			s.logger.Debug("not caching response", "reason", "fetch said so")
 		}
-
-		s.cache.Set(key, objCore)
 	}
 	// write the response to the client
 	for k, v := range beResp.Header {
@@ -191,6 +202,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		s.metrics.Errors.Inc()
 		s.logger.Warn("write beResp.Body", "err", err)
 	}
+	s.logger.Info("cache miss", "key", key, "duration", time.Since(t0), "path", req.URL.Path, "ignoreHost", s.ignoreHost, "cacheable", cacheable)
 	// Add the X-Cache header to the response
 }
 
@@ -351,5 +363,5 @@ func calculateTTL(headers http.Header) time.Duration {
 	}
 
 	// Default case: use default cache behavior
-	return 0
+	return defaultTTL
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -15,22 +16,7 @@ import (
 
 func main() {
 	// Create a configuration programmatically
-	cfg := &config.Config{
-		Backend: config.BackendConfig{
-			Target:  "example.com:443",
-			Timeout: 30 * time.Second,
-			Scheme:  "https",
-		},
-		Frontend: config.FrontendConfig{
-			Port: 8080,
-		},
-		Cache: config.CacheConfig{
-			MaxObj:  "1M",
-			MaxCost: "1G",
-		},
-		LogLevel: "debug", // Set custom log level in the embedded example
-	}
-
+	cfg := getConfig()
 	// Set up a logger with the log level from config
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: cfg.GetLogLevel(),
@@ -47,9 +33,11 @@ func main() {
 		logger.Error("failed to create hazelnut server", "error", err)
 		os.Exit(1)
 	}
-
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	// Start the server in a goroutine
 	go func() {
+		defer wg.Done()
 		if err := hazelnut.Run(ctx); err != nil {
 			logger.Error("hazelnut server error", "error", err)
 		}
@@ -63,8 +51,26 @@ func main() {
 	// Wait for termination signal
 	<-ctx.Done()
 	logger.Info("shutting down")
-
+	wg.Wait()
 	// We could perform additional cleanup here if needed
 
 	fmt.Println("Goodbye!")
+}
+
+func getConfig() *config.Config {
+	return &config.Config{
+		DefaultBackend: config.BackendConfig{
+			Target:  "example.com:443",
+			Timeout: 30 * time.Second,
+			Scheme:  "https",
+		},
+		Frontend: config.FrontendConfig{
+			Port: 8080,
+		},
+		Cache: config.CacheConfig{
+			MaxObj:  "1M",
+			MaxCost: "1G",
+		},
+		LogLevel: "debug", // Set custom log level in the embedded example
+	}
 }

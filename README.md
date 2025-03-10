@@ -20,7 +20,7 @@ It might not be useful on its own.
 ### As a standalone server
 
 ```bash
-# Run with default config file (config.yaml)
+# Run with default config file (config.example.yaml)
 ./hazelnut
 
 # Run with a specific config file

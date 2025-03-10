@@ -6,17 +6,26 @@ frontend:
 
 # Default backend used when no virtual host matches
 default_backend:
-  target: localhost:3000
+  target: localhost:8000
   timeout: 10s
   scheme: http
+
+# Virtual host specific backends
+virtualhosts:
+  "example.com":
+    target: example-backend:8080
+    timeout: 10s
+    scheme: http
+  "api.example.com":
+    target: api-backend:8080
+    timeout: 5s
+    scheme: https
 
 cache:
   maxobj: 1M
   maxcost: 1G
   # When true, requests to different hosts but with the same path will use the same cache entry
-  ignorehost: true
+  ignorehost: false
 
 # Log level can be: debug, info, warn, error
-logging:
-  level: debug
-  format: json
+loglevel: info

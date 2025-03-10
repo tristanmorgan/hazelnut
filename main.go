@@ -43,13 +43,21 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
-
+	var handler slog.Handler
 	// Initialize logger with configured log level
-	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: cfg.GetLogLevel(),
-	})
+	switch cfg.Logging.Format {
+	case "text":
+		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: cfg.GetLogLevel(),
+		})
+	case "json":
+		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: cfg.GetLogLevel(),
+		})
+	}
 	logger := slog.New(handler)
-	logger.Info("starting hazelnut", "version", embeddedVersion, "logLevel", cfg.LogLevel)
+	logger.Info("starting hazelnut", "version", embeddedVersion,
+		"logLevel", cfg.Logging.Level, "config", configPath)
 
 	// Use the server package to run the server with loaded config
 	srv, err := server.New(ctx, cfg, logger)
