@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"log/slog"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -27,29 +29,25 @@ type LoggingConfig struct {
 type BackendConfig struct {
 	Target  string        `yaml:"target"`
 	Timeout time.Duration `yaml:"timeout"`
-	Scheme  string        `yaml:"scheme"`
 }
 
-// ParseTarget parses the target string into host and port
-func (bc *BackendConfig) ParseTarget() (string, int) {
-	parts := strings.Split(bc.Target, ":")
-	host := parts[0]
-	port := 443 // Default
-
-	if len(parts) > 1 {
-		var portValue int
-		_, err := fmt.Sscanf(parts[1], "%d", &portValue)
-		if err == nil {
-			port = portValue
-		}
+// ParseTarget parses the target baseUrl into scheme, host and port
+func (bc *BackendConfig) ParseTarget() (string, string, int, error) {
+	u, err := url.Parse(bc.Target)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("url.Parse(%q): %w", bc.Target, err)
 	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		port = 80
+	}
+	return u.Scheme, u.Hostname(), port, nil
 
-	return host, port
 }
 
 // FrontendConfig contains frontend-specific configuration
 type FrontendConfig struct {
-	Port        int    `yaml:"port"`
+	BaseURL     string `yaml:"base_url"`
 	MetricsPort int    `yaml:"metricsport"`
 	Cert        string `yaml:"cert"`
 	Key         string `yaml:"key"`
@@ -57,7 +55,20 @@ type FrontendConfig struct {
 
 // GetListenAddr returns the formatted listen address
 func (fc *FrontendConfig) GetListenAddr() string {
-	return fmt.Sprintf(":%d", fc.Port)
+	// parse the port from the base URL
+	u, err := url.Parse(fc.BaseURL)
+	if err != nil {
+		panic(fmt.Errorf("url.Parse(%q): %w", fc.BaseURL, err))
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		port = 8080
+	}
+	host := u.Hostname()
+	if host == "" {
+		host = "localhost"
+	}
+	return fmt.Sprintf("%s:%d", host, port)
 }
 
 // CacheConfig contains cache-specific configuration
@@ -121,12 +132,11 @@ func LoadConfig(path string) (*Config, error) {
 	// Set default values
 	cfg := &Config{
 		DefaultBackend: BackendConfig{
-			Target:  "www.varnish-software.com:443",
+			Target:  "https://www.varnish-software.com:443",
 			Timeout: 30 * time.Second,
-			Scheme:  "https",
 		},
 		Frontend: FrontendConfig{
-			Port:        8080,
+			BaseURL:     "http://localhost:8080",
 			MetricsPort: 9091,
 		},
 		Cache: CacheConfig{

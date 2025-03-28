@@ -41,12 +41,11 @@ func TestServer(t *testing.T) {
 	// Using port 0 lets the system allocate an available port
 	cfg := &config.Config{
 		DefaultBackend: config.BackendConfig{
-			Target:  fmt.Sprintf("%s:%d", host, port),
+			Target:  fmt.Sprintf("http://%s:%d", host, port),
 			Timeout: 30 * time.Second,
-			Scheme:  "http", // Use HTTP for tests
 		},
 		Frontend: config.FrontendConfig{
-			Port:        0, // Use port 0 to get a random available port
+			BaseURL:     "http://localhost:0",
 			MetricsPort: 0, // Disable metrics in tests
 		},
 		Cache: config.CacheConfig{
@@ -106,12 +105,11 @@ func TestServerConfig(t *testing.T) {
 	// Create a simple config with port 0 (random port)
 	cfg := &config.Config{
 		DefaultBackend: config.BackendConfig{
-			Target:  "example.com:443",
+			Target:  "http://example.com:443",
 			Timeout: 30 * time.Second,
-			Scheme:  "https",
 		},
 		Frontend: config.FrontendConfig{
-			Port:        0, // Use random port
+			BaseURL:     "http://example.com:0",
 			MetricsPort: 0, // Disable metrics in tests
 		},
 		Cache: config.CacheConfig{
@@ -127,13 +125,11 @@ func TestServerConfig(t *testing.T) {
 	}
 
 	// Verify the server configuration
-	if srv.Backend.GetScheme() != "https" {
+	if srv.Backend.GetScheme() != "http" {
 		t.Errorf("Expected backend scheme to be https, got %s", srv.Backend.GetScheme())
 	}
 
-	// We don't check for a specific port anymore since we're using port 0
-	// Instead we ensure that the configuration was properly passed to the server
-	if srv.Config.Frontend.Port != cfg.Frontend.Port {
-		t.Errorf("Expected frontend port to match configuration, got %d", srv.Config.Frontend.Port)
+	if srv.Frontend.ActualPort() != 0 {
+		t.Errorf("Expected frontend port to be 0 (random), got %d", srv.Frontend.ActualPort())
 	}
 }

@@ -48,25 +48,31 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	}
 
 	// Initialize default backend
-	backendHost, backendPort := cfg.DefaultBackend.ParseTarget()
-	logger.Info("initializing default backend", "host", backendHost, "port", backendPort, "scheme", cfg.DefaultBackend.Scheme)
+	scheme, backendHost, backendPort, err := cfg.DefaultBackend.ParseTarget()
+	if err != nil {
+		return nil, fmt.Errorf("parsing default backend target: %w", err)
+	}
+	logger.Info("initializing default backend", "scheme", scheme, "host", backendHost, "port", backendPort)
 	defaultBackend := backend.New(logger, backendHost, backendPort)
-	defaultBackend.SetScheme(cfg.DefaultBackend.Scheme)
+	defaultBackend.SetScheme(scheme)
 
 	// Create the backend router with the default backend
 	backendRouter := backend.NewRouter(logger, defaultBackend)
 
 	// Add virtual host backends if configured
 	for host, backendCfg := range cfg.VirtualHosts {
-		vHost, vPort := backendCfg.ParseTarget()
+		scheme, vHost, vPort, err := backendCfg.ParseTarget()
+		if err != nil {
+			return nil, fmt.Errorf("parsing virtual host backend target: %w", err)
+		}
 		logger.Info("initializing virtual host backend",
 			"virtualHost", host,
 			"target", vHost,
 			"port", vPort,
-			"scheme", backendCfg.Scheme)
+			"scheme", scheme)
 
 		vBackend := backend.New(logger, vHost, vPort)
-		vBackend.SetScheme(backendCfg.Scheme)
+		vBackend.SetScheme(scheme)
 		backendRouter.AddBackend(host, vBackend)
 	}
 

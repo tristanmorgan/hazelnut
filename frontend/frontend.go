@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -59,7 +58,6 @@ func (s *Server) ActualPort() int {
 	if s.srv == nil || s.srv.Addr == "" {
 		return 0
 	}
-
 	// If the server has a listener, get the actual port
 	if listener := s.srv.BaseContext; listener != nil {
 		if addr, ok := s.srv.BaseContext(nil).Value(http.LocalAddrContextKey).(net.Addr); ok {
@@ -68,7 +66,6 @@ func (s *Server) ActualPort() int {
 			}
 		}
 	}
-
 	return 0
 }
 
@@ -166,7 +163,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// body dump for debugging purposes:
-	_, _ = fmt.Fprintln(os.Stdout, string(body))
+	// _, _ = fmt.Fprintln(os.Stdout, string(body))
 
 	// clean up headers before inserting into cache:
 	for _, h := range headerDenyList() {

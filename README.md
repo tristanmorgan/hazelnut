@@ -1,10 +1,8 @@
 # Hazelnut - A caching reverse proxy
 
-Hazelnut is a lightweight caching reverse proxy written in Go. It can be used as a standalone server or embedded into your Go applications.
-
-It is first and foremost meant to be embedded into tests in applications that expect a HTTP cache to be there.
-
-It might not be useful on its own.
+Hazelnut is a lightweight caching reverse proxy written in Go. It can be used as a standalone server or embedded into
+your Go applications. It is first and foremost meant to be embedded into tests in applications that expect a HTTP cache
+to be there. It is likely not useful for production use without a lot of work.
 
 ## Features
 
@@ -30,35 +28,37 @@ It might not be useful on its own.
 ### Embedded in your Go application
 
 Hazelnut can be easily embedded in your Go application:
+
 #### Code example
+
 ```go
 package main
 
 import (
-    "github.com/perbu/hazelnut/config"
-    "github.com/perbu/hazelnut/server"
+	"github.com/perbu/hazelnut/config"
+	"github.com/perbu/hazelnut/server"
 )
 
 // Create configuration
 cfg := &config.Config{
-    Backend: config.BackendConfig{
-        Target:  "example.com:443",
-        Scheme:  "https",
-    },
-    Frontend: config.FrontendConfig{
-        Port: 8080,
-        MetricsPort: 9091,
-    },
-    Cache: config.CacheConfig{
-        MaxObj:  "1M",
-        MaxCost: "1G",
-    },
+Backend: config.BackendConfig{
+Target:  "example.com:443",
+Scheme:  "https",
+},
+Frontend: config.FrontendConfig{
+Port: 8080,
+MetricsPort: 9091,
+},
+Cache: config.CacheConfig{
+MaxObj:  "1M",
+MaxCost: "1G",
+},
 }
 
 // Create and run server
 hazelnut, err := server.New(ctx, cfg, logger)
 if err != nil {
-    // handle error
+// handle error
 }
 // ..
 // Run hazelnut. You might wanna check the return value if you actually care.
@@ -81,7 +81,7 @@ You can configure these metrics in Prometheus by adding the following to your `p
 scrape_configs:
   - job_name: 'hazelnut'
     static_configs:
-      - targets: ['localhost:9091']
+      - targets: [ 'localhost:9091' ]
 ```
 
 ## Configuration

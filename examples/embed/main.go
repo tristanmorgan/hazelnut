@@ -60,17 +60,19 @@ func main() {
 func getConfig() *config.Config {
 	return &config.Config{
 		DefaultBackend: config.BackendConfig{
-			Target:  "example.com:443",
+			Target:  "https://example.com:443",
 			Timeout: 30 * time.Second,
-			Scheme:  "https",
 		},
 		Frontend: config.FrontendConfig{
-			Port: 8080,
+			BaseURL: "http://localhost:8888",
 		},
 		Cache: config.CacheConfig{
 			MaxObj:  "1M",
 			MaxCost: "1G",
 		},
-		LogLevel: "debug", // Set custom log level in the embedded example
+		Logging: config.LoggingConfig{
+			Level:  "info",
+			Format: "text",
+		},
 	}
 }
