@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"crypto/sha256"
 	"github.com/dgraph-io/ristretto/v2"
 	"net/http"
 	"strconv"
@@ -165,4 +166,20 @@ func calculateTTL(headers http.Header) time.Duration {
 
 	// Default case: use default cache behavior
 	return 0
+}
+
+// MakeKey takes a http.Request and a flag indicating whether to ignore the host,
+// and returns a 32 byte sha256 hash of the request.
+func MakeKey(r *http.Request, ignoreHost bool) []byte {
+	sh := sha256.New()
+
+	// Only include the host in the key if we're not ignoring it
+	if !ignoreHost {
+		_, _ = sh.Write([]byte(r.Host))
+	}
+
+	// Always include the path in the key
+	_, _ = sh.Write([]byte(r.URL.Path))
+
+	return sh.Sum(nil)
 }

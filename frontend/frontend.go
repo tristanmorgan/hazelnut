@@ -2,7 +2,6 @@ package frontend
 
 import (
 	"context"
-	"crypto/sha256"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -97,26 +96,10 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	s.logger.Info("request", "method", req.Method, "path", req.URL.Path, "duration", time.Since(t0))
 }
 
-// makeKey takes a http.Request and a flag indicating whether to ignore the host,
-// and returns a 32 byte sha256 hash of the request.
-func makeKey(r *http.Request, ignoreHost bool) []byte {
-	sh := sha256.New()
-
-	// Only include the host in the key if we're not ignoring it
-	if !ignoreHost {
-		_, _ = sh.Write([]byte(r.Host))
-	}
-
-	// Always include the path in the key
-	_, _ = sh.Write([]byte(r.URL.Path))
-
-	return sh.Sum(nil)
-}
-
 // cacheable handles GET and HEAD requests, these can be cached and can have hits
 func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	t0 := time.Now()
-	key := makeKey(req, s.ignoreHost)
+	key := cache.MakeKey(req, s.ignoreHost)
 	obj, found := s.cache.Get(key)
 	if found {
 		// Increment cache hit counter
