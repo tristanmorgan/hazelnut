@@ -15,7 +15,7 @@ func TestBackendRequest(t *testing.T) {
 	// Create a logger for testing
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Create a test server that will echo back the request information
+	// Create a test service that will echo back the request information
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Host: %s\nPath: %s\nMethod: %s\n", r.Host, r.URL.Path, r.Method)
 		for name, values := range r.Header {
@@ -26,16 +26,16 @@ func TestBackendRequest(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Extract the host and port from the test server
+	// Extract the host and port from the test service
 	hostParts := strings.Split(strings.TrimPrefix(ts.URL, "http://"), ":")
 	host := hostParts[0]
 	port := 80
 	if len(hostParts) > 1 {
 		fmt.Sscanf(hostParts[1], "%d", &port)
 	}
-	t.Logf("Test server running at %s:%d", host, port)
+	t.Logf("Test service running at %s:%d", host, port)
 
-	// Create the backend pointing to our test server
+	// Create the backend pointing to our test service
 	b := New(logger, host, port)
 
 	t.Run("Preserves Host header", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestBackendRequest(t *testing.T) {
 	})
 
 	t.Run("Handles backend errors", func(t *testing.T) {
-		// Create a backend pointing to a non-existent server
+		// Create a backend pointing to a non-existent service
 		badBackend := New(logger, "localhost", 9999) // This port should not be in use
 
 		// Create a request

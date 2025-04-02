@@ -1,12 +1,12 @@
 frontend:
-  port: 6000
+  baseurl: http://localhost:6000/
   metricsport: 1991
   cert: ""
   key: ""
 
 # Default backend used when no virtual host matches
 default_backend:
-  target: http://www.varnish-software.com
+  target: http://localhost:9999/
   timeout: 10s
 
 cache:
@@ -17,5 +17,5 @@ cache:
 
 # Log level can be: debug, info, warn, error
 logging:
-  level: error
+  level: info
   format: json

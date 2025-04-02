@@ -1,4 +1,4 @@
-package server
+package service
 
 import (
 	"context"
@@ -19,7 +19,7 @@ func TestServer(t *testing.T) {
 	// Create a logger for testing
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Create a test origin server
+	// Create a test origin service
 	originServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Received-Host", r.Host)
 		w.Header().Set("Content-Type", "text/plain")
@@ -28,14 +28,14 @@ func TestServer(t *testing.T) {
 	}))
 	defer originServer.Close()
 
-	// Extract the host and port from test server URL
+	// Extract the host and port from test service URL
 	hostParts := strings.Split(strings.TrimPrefix(originServer.URL, "http://"), ":")
 	host := hostParts[0]
 	port := 80
 	if len(hostParts) > 1 {
 		port, _ = strconv.Atoi(hostParts[1])
 	}
-	t.Logf("Test origin server running at %s:%d", host, port)
+	t.Logf("Test origin service running at %s:%d", host, port)
 
 	// Create a test configuration with a random port
 	// Using port 0 lets the system allocate an available port
@@ -54,22 +54,22 @@ func TestServer(t *testing.T) {
 		},
 	}
 
-	// Instead of starting the full server, we'll create a test handler
-	// Create a server instance to get our handler
+	// Instead of starting the full service, we'll create a test handler
+	// Create a service instance to get our handler
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create the server components (backend, cache, etc.)
+	// Create the service components (backend, cache, etc.)
 	srv, err := New(ctx, cfg, logger)
 	if err != nil {
-		t.Fatalf("Failed to create server: %v", err)
+		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	// Instead of starting the full server, create a test server with the same handler
+	// Instead of starting the full service, create a test service with the same handler
 	testServer := httptest.NewServer(srv.Frontend)
 	defer testServer.Close()
 
-	t.Logf("Test hazelnut server running at %s", testServer.URL)
+	t.Logf("Test hazelnut service running at %s", testServer.URL)
 
 	// Create a test request
 	client := &http.Client{}
@@ -98,7 +98,7 @@ func TestServer(t *testing.T) {
 }
 
 func TestServerConfig(t *testing.T) {
-	// Test that we can create a server from a config file
+	// Test that we can create a service from a config file
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ctx := context.Background()
 
@@ -118,13 +118,13 @@ func TestServerConfig(t *testing.T) {
 		},
 	}
 
-	// Create the server
+	// Create the service
 	srv, err := New(ctx, cfg, logger)
 	if err != nil {
-		t.Fatalf("Failed to create server: %v", err)
+		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	// Verify the server configuration
+	// Verify the service configuration
 	if srv.Backend.GetScheme() != "http" {
 		t.Errorf("Expected backend scheme to be https, got %s", srv.Backend.GetScheme())
 	}

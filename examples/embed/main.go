@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/perbu/hazelnut/config"
-	"github.com/perbu/hazelnut/server"
+	"github.com/perbu/hazelnut/service"
 )
 
 func main() {
@@ -27,23 +27,23 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// Create a new Hazelnut server
-	hazelnut, err := server.New(ctx, cfg, logger)
+	// Create a new Hazelnut service
+	hazelnut, err := service.New(ctx, cfg, logger)
 	if err != nil {
-		logger.Error("failed to create hazelnut server", "error", err)
+		logger.Error("failed to create hazelnut service", "error", err)
 		os.Exit(1)
 	}
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	// Start the server in a goroutine
+	// Start the service in a goroutine
 	go func() {
 		defer wg.Done()
 		if err := hazelnut.Run(ctx); err != nil {
-			logger.Error("hazelnut server error", "error", err)
+			logger.Error("hazelnut service error", "error", err)
 		}
 	}()
 
-	logger.Info("hazelnut server started at :8080")
+	logger.Info("hazelnut service started at :8080")
 
 	// You can do other things in your application here
 	// ...

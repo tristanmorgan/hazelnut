@@ -36,7 +36,7 @@ package main
 
 import (
 	"github.com/perbu/hazelnut/config"
-	"github.com/perbu/hazelnut/server"
+	"github.com/perbu/hazelnut/service"
 )
 
 // Create configuration
@@ -55,7 +55,7 @@ MaxCost: "1G",
 },
 }
 
-// Create and run server
+// Create and run service
 hazelnut, err := server.New(ctx, cfg, logger)
 if err != nil {
 // handle error

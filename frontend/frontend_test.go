@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"fmt"
+	"github.com/perbu/hazelnut/cache/lrucache"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/perbu/hazelnut/backend"
-	"github.com/perbu/hazelnut/cache"
 	"github.com/perbu/hazelnut/metrics"
 )
 
@@ -20,12 +20,12 @@ func TestFrontend(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	// Create a cache
-	c, err := cache.New(100, 1024*1024) // 100 objects, 1MB
+	c, err := lrucache.New(100, 1024*1024) // 100 objects, 1MB
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
 
-	// Create a test server that will act as our origin
+	// Create a test service that will act as our origin
 	originServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check the path and respond accordingly
 		switch r.URL.Path {
@@ -46,7 +46,7 @@ func TestFrontend(t *testing.T) {
 	}))
 	defer originServer.Close()
 
-	// Extract the host and port from test server URL
+	// Extract the host and port from test service URL
 	hostParts := strings.Split(strings.TrimPrefix(originServer.URL, "http://"), ":")
 	host := hostParts[0]
 	port := 80
@@ -54,11 +54,11 @@ func TestFrontend(t *testing.T) {
 		fmt.Sscanf(hostParts[1], "%d", &port)
 	}
 
-	// Create a real backend client pointing to our test server
+	// Create a real backend client pointing to our test service
 	b := backend.New(logger, host, port)
 	// Set the scheme to http since test servers run on http
 	b.SetScheme("http")
-	t.Logf("Test origin server running at %s:%d", host, port)
+	t.Logf("Test origin service running at %s:%d", host, port)
 
 	// Create metrics
 	m := metrics.New()
@@ -66,7 +66,7 @@ func TestFrontend(t *testing.T) {
 	// Create a frontend with our backend and cache, not ignoring host by default
 	f := New(logger, c, b, "localhost:8080", m, false)
 
-	// Create a test server with our frontend as handler
+	// Create a test service with our frontend as handler
 	ts := httptest.NewServer(f)
 	defer ts.Close()
 
@@ -221,7 +221,7 @@ func TestFrontend(t *testing.T) {
 		// Create a new frontend with ignoreHost = true
 		fIgnoreHost := New(logger, c, b, "localhost:8080", m, true)
 
-		// Create a test server with this frontend
+		// Create a test service with this frontend
 		tsIgnore := httptest.NewServer(fIgnoreHost)
 		defer tsIgnore.Close()
 

@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"github.com/perbu/hazelnut/config"
-	"github.com/perbu/hazelnut/server"
+	"github.com/perbu/hazelnut/service"
 )
 
 //go:embed .version
@@ -59,10 +59,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	logger.Info("starting hazelnut", "version", embeddedVersion,
 		"logLevel", cfg.Logging.Level, "config", configPath)
 
-	// Use the server package to run the server with loaded config
-	srv, err := server.New(ctx, cfg, logger)
+	// Use the service package to run the service with loaded config
+	srv, err := service.New(ctx, cfg, logger)
 	if err != nil {
-		return fmt.Errorf("creating server: %w", err)
+		return fmt.Errorf("creating service: %w", err)
 	}
 
 	return srv.Run(ctx)

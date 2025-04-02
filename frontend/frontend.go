@@ -24,8 +24,13 @@ const (
 	defaultTTL = 5 * time.Minute
 )
 
+type Cache interface {
+	Get(key string) (cache.ObjCore, bool)
+	Set(key string, value cache.ObjCore)
+}
+
 type Server struct {
-	cache      *cache.Store
+	cache      Cache
 	backend    backend.Fetcher
 	srv        *http.Server
 	handler    http.Handler
@@ -34,7 +39,7 @@ type Server struct {
 	ignoreHost bool // Flag to determine if host should be ignored in cache keys
 }
 
-func New(logger *slog.Logger, cache *cache.Store, backend backend.Fetcher, addr string, metrics *metrics.Metrics, ignoreHost bool) *Server {
+func New(logger *slog.Logger, cache Cache, backend backend.Fetcher, addr string, metrics *metrics.Metrics, ignoreHost bool) *Server {
 	s := &Server{
 		cache:      cache,
 		backend:    backend,
@@ -50,14 +55,14 @@ func New(logger *slog.Logger, cache *cache.Store, backend backend.Fetcher, addr 
 	return s
 }
 
-// ActualPort returns the actual port the server is listening on.
-// Only works after server is started and when using port 0 to get a random port.
-// this is useful for testing when the server is started with port 0.
+// ActualPort returns the actual port the service is listening on.
+// Only works after service is started and when using port 0 to get a random port.
+// this is useful for testing when the service is started with port 0.
 func (s *Server) ActualPort() int {
 	if s.srv == nil || s.srv.Addr == "" {
 		return 0
 	}
-	// If the server has a listener, get the actual port
+	// If the service has a listener, get the actual port
 	if listener := s.srv.BaseContext; listener != nil {
 		if addr, ok := s.srv.BaseContext(nil).Value(http.LocalAddrContextKey).(net.Addr); ok {
 			if tcpAddr, ok := addr.(*net.TCPAddr); ok {
@@ -69,14 +74,14 @@ func (s *Server) ActualPort() int {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	// Setup server shutdown when context is done
+	// Setup service shutdown when context is done
 	go func() {
 		<-ctx.Done()
-		s.logger.Info("shutting down server")
+		s.logger.Info("shutting down service")
 		_ = s.srv.Shutdown(ctx)
 	}()
 
-	// Start the server
+	// Start the service
 	if err := s.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("ListenAndServe: %w", err)
 	}

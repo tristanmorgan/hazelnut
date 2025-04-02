@@ -1,9 +1,10 @@
-package cache
+package mapcache
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"github.com/perbu/hazelnut/cache"
 	"io"
 	"net/http"
 	"testing"
@@ -28,7 +29,7 @@ func TestCache(t *testing.T) {
 		key := sha256.Sum256([]byte("test-key-1"))
 
 		// Create ObjCore
-		value := ObjCore{
+		value := cache.ObjCore{
 			Headers: headers,
 			Body:    body,
 		}
@@ -78,7 +79,7 @@ func TestCache(t *testing.T) {
 		// Store several items
 		for i := 0; i < 5; i++ {
 			key := sha256.Sum256([]byte(fmt.Sprintf("key-%d", i)))
-			value := ObjCore{
+			value := cache.ObjCore{
 				Headers: make(http.Header),
 				Body:    []byte(fmt.Sprintf("content-%d", i)),
 			}
@@ -120,7 +121,7 @@ func TestCache(t *testing.T) {
 
 		// Create key and value
 		key := sha256.Sum256([]byte("test-conversion"))
-		value := ObjCore{
+		value := cache.ObjCore{
 			Headers: dummyResp.Header,
 			Body:    body,
 		}

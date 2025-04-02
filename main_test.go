@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/perbu/hazelnut/cache/lrucache"
 	"io"
 	"log/slog"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/perbu/hazelnut/backend"
-	"github.com/perbu/hazelnut/cache"
 	"github.com/perbu/hazelnut/frontend"
 	"github.com/perbu/hazelnut/metrics"
 )
@@ -21,7 +21,7 @@ func TestProxy(t *testing.T) {
 	// Create a logger for testing
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Create a test server that will act as our origin
+	// Create a test service that will act as our origin
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Echo the host header to verify it's preserved
 		w.Header().Set("X-Received-Host", r.Host)
@@ -30,7 +30,7 @@ func TestProxy(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Extract the host and port from test server URL
+	// Extract the host and port from test service URL
 	// Format is http://127.0.0.1:port
 	hostParts := strings.Split(strings.TrimPrefix(ts.URL, "http://"), ":")
 	host := hostParts[0]
@@ -38,15 +38,15 @@ func TestProxy(t *testing.T) {
 	if len(hostParts) > 1 {
 		port, _ = strconv.Atoi(hostParts[1])
 	}
-	t.Logf("Test server running at %s:%d", host, port)
+	t.Logf("Test service running at %s:%d", host, port)
 
 	// Configure the cache
-	c, err := cache.New(100, 1024*1024) // 100 objects, 1MB
+	c, err := lrucache.New(100, 1024*1024) // 100 objects, 1MB
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
 
-	// Configure the backend to point to our test server
+	// Configure the backend to point to our test service
 	b := backend.New(logger, host, port)
 	// Set the scheme to http since test servers run on http
 	b.SetScheme("http")
@@ -57,7 +57,7 @@ func TestProxy(t *testing.T) {
 	// Configure the frontend with our backend and cache
 	f := frontend.New(logger, c, b, "localhost:8080", m, false)
 
-	// Start the proxy server
+	// Start the proxy service
 	proxyServer := httptest.NewServer(f)
 	t.Logf("Test proxy running at %s", proxyServer.URL)
 	defer proxyServer.Close()

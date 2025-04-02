@@ -1,13 +1,14 @@
-package server
+package service
 
 import (
 	"context"
 	"fmt"
+	"github.com/perbu/hazelnut/cache"
+	"github.com/perbu/hazelnut/cache/mapcache"
 	"io"
 	"log/slog"
 
 	"github.com/perbu/hazelnut/backend"
-	"github.com/perbu/hazelnut/cache"
 	"github.com/perbu/hazelnut/config"
 	"github.com/perbu/hazelnut/frontend"
 	"github.com/perbu/hazelnut/metrics"
@@ -16,36 +17,46 @@ import (
 	"net/http"
 )
 
-// Server represents a Hazelnut server instance
+// Server represents a Hazelnut service instance
 type Server struct {
 	Config   *config.Config
 	Logger   *slog.Logger
-	Cache    *cache.Store
+	Cache    Cache
 	Backend  *backend.Router
 	Frontend *frontend.Server
 	Metrics  *metrics.Metrics
 }
 
-// New creates a new Hazelnut server with the provided configuration
+type Cache interface {
+	Get(key string) (cache.ObjCore, bool)
+	Set(key string, value cache.ObjCore)
+}
+
+// New creates a new Hazelnut service with the provided configuration
 func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
 
-	logger.Info("initializing hazelnut server")
+	logger.Info("initializing hazelnut service")
 
 	// Initialize metrics
 	logger.Info("initializing metrics")
 	m := metrics.New()
 
 	// Initialize cache
-	maxObj := cfg.Cache.GetMaxObjects()
-	maxSize := cfg.Cache.GetMaxSize()
-	logger.Info("initializing cache", "maxObjects", maxObj, "maxSize", maxSize)
-	c, err := cache.New(maxObj, maxSize)
-	if err != nil {
-		return nil, fmt.Errorf("cache.New: %w", err)
-	}
+	/*
+		maxObj := cfg.Cache.GetMaxObjects()
+		maxSize := cfg.Cache.GetMaxSize()
+		logger.Info("initializing cache", "maxObjects", maxObj, "maxSize", maxSize)
+
+	*/
+	c := mapcache.New()
+	/*
+		if err != nil {
+			return nil, fmt.Errorf("cache.New: %w", err)
+		}
+	*/
 
 	// Initialize default backend
 	scheme, backendHost, backendPort, err := cfg.DefaultBackend.ParseTarget()
@@ -81,13 +92,13 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	logger.Info("initializing frontend", "listenAddr", listenAddr, "ignoreHost", cfg.Cache.IgnoreHost)
 	f := frontend.New(logger, c, backendRouter, listenAddr, m, cfg.Cache.IgnoreHost)
 
-	// Create metrics HTTP server with a separate mux
+	// Create metrics HTTP service with a separate mux
 	metricsAddr := ":9091" // Default metrics port
 	if cfg.Frontend.MetricsPort != 0 {
 		metricsAddr = fmt.Sprintf(":%d", cfg.Frontend.MetricsPort)
 	}
 
-	// Skip starting metrics server in test environment
+	// Skip starting metrics service in test environment
 	if metricsAddr != ":0" {
 		metricsMux := http.NewServeMux()
 		metricsMux.Handle("/metrics", promhttp.Handler())
@@ -98,16 +109,16 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		}
 
 		go func() {
-			logger.Info("starting metrics server", "addr", metricsAddr)
+			logger.Info("starting metrics service", "addr", metricsAddr)
 			if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Error("metrics server failed", "error", err)
+				logger.Error("metrics service failed", "error", err)
 			}
 		}()
 
-		// Ensure metrics server shuts down when context is done
+		// Ensure metrics service shuts down when context is done
 		go func() {
 			<-ctx.Done()
-			logger.Info("shutting down metrics server")
+			logger.Info("shutting down metrics service")
 			_ = metricsServer.Shutdown(context.Background())
 		}()
 	}
@@ -122,12 +133,12 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	}, nil
 }
 
-// GetActualPort returns the actual port the server is listening on
+// GetActualPort returns the actual port the service is listening on
 func (s *Server) GetActualPort() int {
 	return s.Frontend.ActualPort()
 }
 
-// Run starts the Hazelnut server and blocks until the context is canceled
+// Run starts the Hazelnut service and blocks until the context is canceled
 func (s *Server) Run(ctx context.Context) error {
 	eg := new(errgroup.Group)
 	eg.Go(func() error {
@@ -141,7 +152,7 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-// LoadAndRun loads a configuration file and runs a Hazelnut server
+// LoadAndRun loads a configuration file and runs a Hazelnut service
 // This is a convenience function for applications that want to run Hazelnut
 // with minimal code
 func LoadAndRun(ctx context.Context, configPath string, logger *slog.Logger, stdout, stderr io.Writer) error {
@@ -159,10 +170,10 @@ func LoadAndRun(ctx context.Context, configPath string, logger *slog.Logger, std
 		logger = slog.New(handler)
 	}
 
-	// Create and run server
+	// Create and run service
 	srv, err := New(ctx, cfg, logger)
 	if err != nil {
-		return fmt.Errorf("creating server: %w", err)
+		return fmt.Errorf("creating service: %w", err)
 	}
 
 	return srv.Run(ctx)
