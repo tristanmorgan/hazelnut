@@ -6,7 +6,7 @@ frontend:
 
 # Default backend used when no virtual host matches
 default_backend:
-  target: http://localhost:9999/
+  target: http://localhost:8000/
   timeout: 10s
 
 cache:
@@ -17,5 +17,5 @@ cache:
 
 # Log level can be: debug, info, warn, error
 logging:
-  level: info
+  level: error
   format: json
