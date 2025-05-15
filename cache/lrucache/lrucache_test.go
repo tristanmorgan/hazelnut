@@ -35,13 +35,13 @@ func TestCache(t *testing.T) {
 		}
 
 		// Store in cache
-		c.Set(key[:], value)
+		c.Set(string(key[:]), value)
 
 		// Wait for Ristretto to process the set operation (it's async)
 		time.Sleep(10 * time.Millisecond)
 
 		// Try to retrieve from cache
-		cachedValue, found := c.Get(key[:])
+		cachedValue, found := c.Get(string(key[:]))
 		if !found {
 			t.Fatalf("Item not found in cache after setting")
 		}
@@ -63,7 +63,7 @@ func TestCache(t *testing.T) {
 	t.Run("Cache miss", func(t *testing.T) {
 		// Try to get a non-existent key
 		nonExistentKey := sha256.Sum256([]byte("non-existent-key"))
-		_, found := c.Get(nonExistentKey[:])
+		_, found := c.Get(string(nonExistentKey[:]))
 		if found {
 			t.Errorf("Expected cache miss for non-existent key, but got a hit")
 		}
@@ -83,7 +83,7 @@ func TestCache(t *testing.T) {
 				Headers: make(http.Header),
 				Body:    []byte(fmt.Sprintf("content-%d", i)),
 			}
-			tinyCache.Set(key[:], value)
+			tinyCache.Set(string(key[:]), value)
 		}
 
 		// Wait for processing
@@ -91,7 +91,7 @@ func TestCache(t *testing.T) {
 
 		// Verify we can retrieve at least one item
 		key0 := sha256.Sum256([]byte("key-0"))
-		val, found := tinyCache.Get(key0[:])
+		val, found := tinyCache.Get(string(key0[:]))
 
 		if !found {
 			t.Logf("Note: Cache eviction test is informational. Ristretto may evict based on its policy.")
@@ -127,13 +127,13 @@ func TestCache(t *testing.T) {
 		}
 
 		// Store in cache
-		c.Set(key[:], value)
+		c.Set(string(key[:]), value)
 
 		// Wait for processing
 		time.Sleep(10 * time.Millisecond)
 
 		// Retrieve from cache
-		cachedValue, found := c.Get(key[:])
+		cachedValue, found := c.Get(string(key[:]))
 		if !found {
 			t.Fatalf("Item not found in cache after setting")
 		}

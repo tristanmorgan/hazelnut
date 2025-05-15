@@ -1,5 +1,5 @@
 frontend:
-  baseurl: http://localhost:6000/
+  base_url: http://localhost:6000/
   metricsport: 1991
   cert: ""
   key: ""

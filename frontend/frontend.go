@@ -33,7 +33,6 @@ type Server struct {
 	cache      Cache
 	backend    backend.Fetcher
 	srv        *http.Server
-	handler    http.Handler
 	logger     *slog.Logger
 	metrics    *metrics.Metrics
 	ignoreHost bool // Flag to determine if host should be ignored in cache keys
