@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/perbu/hazelnut/cache"
-	"github.com/perbu/hazelnut/cache/mapcache"
+	"github.com/perbu/hazelnut/cache/lrucache"
 	"io"
 	"log/slog"
 
@@ -45,18 +45,14 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	m := metrics.New()
 
 	// Initialize cache
-	/*
-		maxObj := cfg.Cache.GetMaxObjects()
-		maxSize := cfg.Cache.GetMaxSize()
-		logger.Info("initializing cache", "maxObjects", maxObj, "maxSize", maxSize)
+	maxObj := cfg.Cache.GetMaxObjects()
+	maxSize := cfg.Cache.GetMaxSize()
+	logger.Info("initializing cache", "maxObjects", maxObj, "maxSize", maxSize)
 
-	*/
-	c := mapcache.New()
-	/*
-		if err != nil {
-			return nil, fmt.Errorf("cache.New: %w", err)
-		}
-	*/
+	c, err := lrucache.New(maxObj, maxSize)
+	if err != nil {
+		return nil, fmt.Errorf("cache.New: %w", err)
+	}
 
 	// Initialize default backend
 	scheme, backendHost, backendPort, err := cfg.DefaultBackend.ParseTarget()
