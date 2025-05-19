@@ -129,9 +129,9 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	beReq.RequestURI = ""
 
 	// If original request is HEAD, convert to GET for backend fetch
-	if req.Method == http.MethodHead {
-		beReq.Method = http.MethodGet
-	}
+	// if req.Method == http.MethodHead {
+	//  	beReq.Method = http.MethodGet
+	// }
 
 	// URL scheme will be set by the backend
 
@@ -159,7 +159,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	// add a Via header to the cached response
 	beResp.Header.Add("Via", versionString())
 
-	if cacheable {
+	if cacheable && len(body) > 0 {
 		objCore := cache.ObjCore{
 			Headers: beResp.Header,
 			Body:    body,
