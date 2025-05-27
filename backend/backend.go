@@ -89,7 +89,7 @@ func (c *Client) Fetch(beReq *http.Request) (*http.Response, bool) {
 			"target", fmt.Sprintf("%s:%d", c.target, c.port))
 		return nuts(), false
 	}
-	return beResp, true
+	return beResp, beResp.StatusCode <= 299
 }
 
 // Router manages multiple backend clients based on virtual hosts

@@ -150,7 +150,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// body dump for debugging purposes:
-	// _, _ = fmt.Fprintln(os.Stdout, string(body))
+	// s.logger.Debug("status code ", "status", beResp.StatusCode)
 
 	// clean up headers before inserting into cache:
 	for _, h := range headerDenyList() {
