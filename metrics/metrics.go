@@ -22,20 +22,17 @@ var (
 // Uses a singleton pattern to avoid duplicate registration in tests
 func New() *Metrics {
 	once.Do(func() {
-		// Create a custom registry to avoid conflicts in testing
-		reg := prometheus.NewRegistry()
-		factory := promauto.With(reg)
 
 		instance = &Metrics{
-			CacheHits: factory.NewCounter(prometheus.CounterOpts{
+			CacheHits: promauto.NewCounter(prometheus.CounterOpts{
 				Name: "hazelnut_cache_hits_total",
 				Help: "The total number of cache hits",
 			}),
-			CacheMisses: factory.NewCounter(prometheus.CounterOpts{
+			CacheMisses: promauto.NewCounter(prometheus.CounterOpts{
 				Name: "hazelnut_cache_misses_total",
 				Help: "The total number of cache misses",
 			}),
-			Errors: factory.NewCounter(prometheus.CounterOpts{
+			Errors: promauto.NewCounter(prometheus.CounterOpts{
 				Name: "hazelnut_errors_total",
 				Help: "The total number of errors",
 			}),
