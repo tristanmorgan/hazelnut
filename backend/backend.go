@@ -143,7 +143,7 @@ func (r *Router) GetScheme() string {
 
 func nuts() *http.Response {
 	header := http.Header{}
-	header.Add("Content-Type", "text/plain")
+	header.Add("Content-Type", "text/html")
 	header.Add("X-Backend-Name", "nuts")
 
 	bodyBytes := []byte("<html><body><h1>I have a confuse</h1></body></html>")
