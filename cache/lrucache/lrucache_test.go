@@ -77,7 +77,7 @@ func TestCache(t *testing.T) {
 		}
 
 		// Store several items
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			key := sha256.Sum256([]byte(fmt.Sprintf("key-%d", i)))
 			value := cache.ObjCore{
 				Headers: make(http.Header),
