@@ -105,7 +105,9 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	t0 := time.Now()
 	key := cache.MakeKey(req, s.ignoreHost)
 	obj, found := s.cache.Get(key)
-	if found {
+	// req.Header.Get("Cache-Control") == "no-cache"
+	reqttl := calculateTTL(req.Header)
+	if found && reqttl > 0 {
 		// Increment cache hit counter
 		s.metrics.CacheHits.Inc()
 
@@ -278,11 +280,6 @@ func calculateTTL(headers http.Header) time.Duration {
 			// Check for no-cache directive - can be stored but must be revalidated
 			if directive == "no-cache" {
 				return 0
-			}
-
-			// Check for must-revalidate
-			if directive == "must-revalidate" {
-				// We'll still allow caching but with caution
 			}
 
 			// Check for s-maxage (takes precedence over max-age for shared caches)

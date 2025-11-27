@@ -93,11 +93,6 @@ func calculateTTL(headers http.Header) time.Duration {
 				return -1
 			}
 
-			// Check for must-revalidate
-			if directive == "must-revalidate" {
-				// We'll still allow caching but with caution
-			}
-
 			// Check for s-maxage (takes precedence over max-age for shared caches)
 			if strings.HasPrefix(directive, "s-maxage=") {
 				seconds, err := strconv.Atoi(strings.TrimPrefix(directive, "s-maxage="))
