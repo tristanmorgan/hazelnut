@@ -23,6 +23,8 @@ func MakeKey(r *http.Request, ignoreHost bool) string {
 
 	// Always include the path in the key
 	_, _ = sh.Write([]byte(r.URL.Path))
+	// Always include the parameters too
+	_, _ = sh.Write([]byte(r.URL.RawQuery))
 	sum := sh.Sum(nil)
 	// Return the key as a string
 	return string(sum)
