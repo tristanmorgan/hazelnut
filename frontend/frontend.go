@@ -10,6 +10,7 @@ import (
 	"github.com/perbu/hazelnut/metrics"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"strconv"
@@ -111,9 +112,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		// Increment cache hit counter
 		s.metrics.CacheHits.Inc()
 
-		for k, v := range obj.Headers {
-			resp.Header()[k] = v
-		}
+		maps.Copy(resp.Header(), obj.Headers)
 		resp.Header().Add("X-Cache", "hit")
 		resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
 		resp.WriteHeader(http.StatusOK)
@@ -178,9 +177,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 	// write the response to the client
-	for k, v := range beResp.Header {
-		resp.Header()[k] = v
-	}
+	maps.Copy(resp.Header(), beResp.Header)
 	resp.Header().Add("X-Cache", "miss")
 	resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
 	resp.WriteHeader(beResp.StatusCode)
@@ -222,9 +219,7 @@ func (s *Server) defaultMethod(resp http.ResponseWriter, req *http.Request) {
 
 	beResp, _ := s.backend.Fetch(beReq)
 	defer beResp.Body.Close()
-	for k, v := range beResp.Header {
-		resp.Header()[k] = v
-	}
+	maps.Copy(resp.Header(), beResp.Header)
 	resp.WriteHeader(beResp.StatusCode)
 	if req.Method != http.MethodHead {
 		n, err := io.Copy(resp, beResp.Body)
@@ -263,8 +258,8 @@ func calculateTTL(headers http.Header) time.Duration {
 	// Check for Cache-Control directives that prevent caching
 	cacheControl := headers.Get("Cache-Control")
 	if cacheControl != "" {
-		directives := strings.Split(cacheControl, ",")
-		for _, directive := range directives {
+		directives := strings.SplitSeq(cacheControl, ",")
+		for directive := range directives {
 			directive = strings.TrimSpace(directive)
 
 			// Check for no-store directive - don't cache at all
@@ -283,16 +278,16 @@ func calculateTTL(headers http.Header) time.Duration {
 			}
 
 			// Check for s-maxage (takes precedence over max-age for shared caches)
-			if strings.HasPrefix(directive, "s-maxage=") {
-				seconds, err := strconv.Atoi(strings.TrimPrefix(directive, "s-maxage="))
+			if after, ok := strings.CutPrefix(directive, "s-maxage="); ok {
+				seconds, err := strconv.Atoi(after)
 				if err == nil && seconds > 0 {
 					return time.Duration(seconds) * time.Second
 				}
 			}
 
 			// Check for max-age
-			if strings.HasPrefix(directive, "max-age=") {
-				seconds, err := strconv.Atoi(strings.TrimPrefix(directive, "max-age="))
+			if after, ok := strings.CutPrefix(directive, "max-age="); ok {
+				seconds, err := strconv.Atoi(after)
 				if err == nil && seconds > 0 {
 					return time.Duration(seconds) * time.Second
 				}

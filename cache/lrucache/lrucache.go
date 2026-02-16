@@ -74,8 +74,8 @@ func calculateTTL(headers http.Header) time.Duration {
 	// Check for Cache-Control directives that prevent caching
 	cacheControl := headers.Get("Cache-Control")
 	if cacheControl != "" {
-		directives := strings.Split(cacheControl, ",")
-		for _, directive := range directives {
+		directives := strings.SplitSeq(cacheControl, ",")
+		for directive := range directives {
 			directive = strings.TrimSpace(directive)
 
 			// Check for no-store directive - don't cache at all
@@ -94,16 +94,16 @@ func calculateTTL(headers http.Header) time.Duration {
 			}
 
 			// Check for s-maxage (takes precedence over max-age for shared caches)
-			if strings.HasPrefix(directive, "s-maxage=") {
-				seconds, err := strconv.Atoi(strings.TrimPrefix(directive, "s-maxage="))
+			if after, ok := strings.CutPrefix(directive, "s-maxage="); ok {
+				seconds, err := strconv.Atoi(after)
 				if err == nil && seconds > 0 {
 					return time.Duration(seconds) * time.Second
 				}
 			}
 
 			// Check for max-age
-			if strings.HasPrefix(directive, "max-age=") {
-				seconds, err := strconv.Atoi(strings.TrimPrefix(directive, "max-age="))
+			if after, ok := strings.CutPrefix(directive, "max-age="); ok {
+				seconds, err := strconv.Atoi(after)
 				if err == nil && seconds > 0 {
 					return time.Duration(seconds) * time.Second
 				}

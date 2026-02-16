@@ -56,8 +56,7 @@ func TestServer(t *testing.T) {
 
 	// Instead of starting the full service, we'll create a test handler
 	// Create a service instance to get our handler
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Create the service components (backend, cache, etc.)
 	srv, err := New(ctx, cfg, logger)

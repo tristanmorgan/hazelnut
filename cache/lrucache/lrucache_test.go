@@ -78,10 +78,10 @@ func TestCache(t *testing.T) {
 
 		// Store several items
 		for i := range 5 {
-			key := sha256.Sum256([]byte(fmt.Sprintf("key-%d", i)))
+			key := sha256.Sum256(fmt.Appendf(nil, "key-%d", i))
 			value := cache.ObjCore{
 				Headers: make(http.Header),
-				Body:    []byte(fmt.Sprintf("content-%d", i)),
+				Body:    fmt.Appendf(nil, "content-%d", i),
 			}
 			tinyCache.Set(string(key[:]), value)
 		}
