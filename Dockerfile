@@ -3,7 +3,7 @@ RUN apk update && apk add --no-cache ca-certificates
 WORKDIR /app
 COPY . .
 RUN go mod tidy
-RUN CGO_ENABLED=0 go build -v -a -trimpath -ldflags="-w -s" -o /hazelnut
+RUN CGO_ENABLED=0 go build -v -a -trimpath -ldflags="-w -s" -tags nethttpomithttp2 -o /hazelnut
 RUN echo "nobody:x:65534:65534:nobody:/:/sbin/nologin" > /passwd
 RUN echo "nogroup:x:65533:" > /group
 
