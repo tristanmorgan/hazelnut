@@ -1,9 +1,11 @@
 package metrics
 
 import (
+	"github.com/perbu/hazelnut/version"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors/version"
+	colVersion "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	promVersion "github.com/prometheus/common/version"
 	"sync"
 )
 
@@ -23,7 +25,8 @@ var (
 // Uses a singleton pattern to avoid duplicate registration in tests
 func New() *Metrics {
 	once.Do(func() {
-		prometheus.MustRegister(version.NewCollector("hazelnut"))
+		promVersion.Version = version.Version
+		prometheus.MustRegister(colVersion.NewCollector("hazelnut"))
 		instance = &Metrics{
 			CacheHits: promauto.NewCounter(prometheus.CounterOpts{
 				Name: "hazelnut_cache_hits_total",

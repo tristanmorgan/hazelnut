@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"flag"
 	"fmt"
 	"io"
@@ -13,10 +12,8 @@ import (
 
 	"github.com/perbu/hazelnut/config"
 	"github.com/perbu/hazelnut/service"
+	"github.com/perbu/hazelnut/version"
 )
-
-//go:embed .version
-var embeddedVersion string
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -56,7 +53,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		})
 	}
 	logger := slog.New(handler)
-	logger.Info("starting hazelnut", "version", embeddedVersion,
+	logger.Info("starting hazelnut", "version", version.Version,
 		"logLevel", cfg.Logging.Level, "config", configPath)
 
 	// Use the service package to run the service with loaded config

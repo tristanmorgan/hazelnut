@@ -1,7 +1,8 @@
 FROM golang:alpine AS builder
-RUN apk update && apk add --no-cache ca-certificates
+RUN apk update && apk add --no-cache git ca-certificates
 WORKDIR /app
 COPY . .
+RUN git clean -f -d -x
 RUN go mod tidy
 RUN CGO_ENABLED=0 go build -v -a -trimpath -ldflags="-w -s" -tags nethttpomithttp2 -o /hazelnut
 RUN echo "nobody:x:65534:65534:nobody:/:/sbin/nologin" > /passwd
