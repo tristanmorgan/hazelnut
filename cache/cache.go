@@ -10,8 +10,6 @@ type ObjCore struct {
 	Body    []byte
 }
 
-// type Key string
-
 // MakeKey takes a http.Request and a flag indicating whether to ignore the host,
 // and returns a 32 byte sha256 hash of the request.
 func MakeKey(r *http.Request, ignoreHost bool) string {

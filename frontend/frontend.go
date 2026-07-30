@@ -5,9 +5,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/perbu/hazelnut/backend"
-	"github.com/perbu/hazelnut/cache"
-	"github.com/perbu/hazelnut/metrics"
 	"io"
 	"log/slog"
 	"maps"
@@ -16,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/perbu/hazelnut/backend"
+	"github.com/perbu/hazelnut/cache"
+	"github.com/perbu/hazelnut/metrics"
 )
 
 //go:embed .version
@@ -105,6 +106,11 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	t0 := time.Now()
 	key := cache.MakeKey(req, s.ignoreHost)
+
+	// Check for Range header
+	rangeHeader := req.Header.Get("Range")
+	hasRange := rangeHeader != ""
+
 	obj, found := s.cache.Get(key)
 	// req.Header.Get("Cache-Control") == "no-cache"
 	reqttl := calculateTTL(req.Header)
@@ -112,9 +118,17 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		// Increment cache hit counter
 		s.metrics.CacheHits.Inc()
 
+		// Handle range request from cache
+		if hasRange {
+			s.serveRangeFromCache(resp, req, obj, rangeHeader, key, t0)
+			return
+		}
+
+		// Normal cache hit (full content)
 		maps.Copy(resp.Header(), obj.Headers)
 		resp.Header().Add("X-Cache", "hit")
 		resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
+		resp.Header().Set("Accept-Ranges", "bytes")
 		resp.WriteHeader(http.StatusOK)
 		_, _ = resp.Write(obj.Body) // yolo
 		s.logger.Info("cache hit", "key", key, "duration", time.Since(t0), "path", req.URL.Path, "ignoreHost", s.ignoreHost)
@@ -141,6 +155,13 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		beReq.URL.Host = beReq.Host
 	}
 
+	// If client requested range but we don't have it cached,
+	// pass the range request to backend and stream directly (don't cache)
+	if hasRange {
+		s.handleRangeMiss(resp, beReq, rangeHeader, t0)
+		return
+	}
+
 	beResp, cacheable := s.backend.Fetch(beReq)
 
 	defer beResp.Body.Close()
@@ -159,6 +180,7 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	}
 	// add a Via header to the cached response
 	beResp.Header.Add("Via", versionString())
+	beResp.Header.Set("Accept-Ranges", "bytes")
 
 	if cacheable && len(body) > 0 {
 		objCore := cache.ObjCore{
@@ -340,4 +362,83 @@ func calculateTTL(headers http.Header) time.Duration {
 
 	// Default case: use default cache behavior
 	return defaultTTL
+}
+
+// serveRangeFromCache serves a range request from cached content
+func (s *Server) serveRangeFromCache(resp http.ResponseWriter, req *http.Request,
+	obj cache.ObjCore, rangeHeader string, key string, t0 time.Time) {
+	contentLength := int64(len(obj.Body))
+
+	ranges, err := ParseRange(rangeHeader, contentLength)
+	if err != nil {
+		s.logger.Warn("invalid range header", "error", err, "header", rangeHeader)
+		resp.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", contentLength))
+		http.Error(resp, "Invalid Range", http.StatusRequestedRangeNotSatisfiable)
+		return
+	}
+
+	// For simplicity, only handle single range requests
+	// Multi-range requires multipart/byteranges response
+	if len(ranges) != 1 {
+		s.logger.Debug("multiple ranges not supported, serving full content")
+		maps.Copy(resp.Header(), obj.Headers)
+		resp.Header().Add("X-Cache", "hit")
+		resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
+		resp.Header().Set("Accept-Ranges", "bytes")
+		resp.WriteHeader(http.StatusOK)
+		_, _ = resp.Write(obj.Body)
+		s.logger.Info("cache hit (multi-range, full content)", "key", key, "duration", time.Since(t0))
+		return
+	}
+
+	r := ranges[0]
+
+	// Copy headers
+	maps.Copy(resp.Header(), obj.Headers)
+	resp.Header().Set("Content-Length", strconv.FormatInt(r.Length(), 10))
+	resp.Header().Set("Content-Range", r.ContentRange(contentLength))
+	resp.Header().Set("Accept-Ranges", "bytes")
+	resp.Header().Add("X-Cache", "hit")
+	resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
+
+	resp.WriteHeader(http.StatusPartialContent)
+	_, _ = resp.Write(obj.Body[r.Start : r.End+1])
+
+	s.logger.Info("range cache hit", "range", fmt.Sprintf("%d-%d", r.Start, r.End),
+		"duration", time.Since(t0), "path", req.URL.Path)
+}
+
+// handleRangeMiss handles a range request when content is not in cache
+// It forwards the range request to backend and streams directly without caching
+func (s *Server) handleRangeMiss(resp http.ResponseWriter, beReq *http.Request,
+	rangeHeader string, t0 time.Time) {
+	// Forward the range request to backend
+	beResp, _ := s.backend.Fetch(beReq)
+	defer beResp.Body.Close()
+
+	// Clean headers
+	for _, h := range headerDenyList() {
+		beResp.Header.Del(h)
+	}
+	beResp.Header.Add("Via", versionString())
+
+	// Copy headers to response
+	maps.Copy(resp.Header(), beResp.Header)
+	resp.Header().Add("X-Cache", "miss")
+	resp.Header().Add("X-Cache-Latency", asciiFormat(time.Since(t0)))
+	resp.Header().Set("Accept-Ranges", "bytes")
+
+	// Write status code
+	resp.WriteHeader(beResp.StatusCode)
+
+	// Stream the response body directly to client
+	written, err := io.Copy(resp, beResp.Body)
+	if err != nil {
+		s.metrics.Errors.Inc()
+		s.logger.Error("stream range response", "err", err, "written", written)
+		return
+	}
+
+	s.logger.Info("range cache miss (streamed)", "range", rangeHeader,
+		"duration", time.Since(t0), "bytes", written, "path", beReq.URL.Path)
 }
