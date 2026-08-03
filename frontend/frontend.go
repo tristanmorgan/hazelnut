@@ -227,6 +227,7 @@ func asciiFormat(since time.Duration) string {
 // defaultMethod handles all other requests
 // no attempt at caching is made
 func (s *Server) defaultMethod(resp http.ResponseWriter, req *http.Request) {
+	s.metrics.CacheBypass.Inc()
 	// clone the request to avoid modifying the original
 	beReq := req.Clone(context.Background())
 	// Clear the URI

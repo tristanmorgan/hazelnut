@@ -13,6 +13,7 @@ import (
 type Metrics struct {
 	CacheHits   prometheus.Counter
 	CacheMisses prometheus.Counter
+	CacheBypass prometheus.Counter
 	Errors      prometheus.Counter
 }
 
@@ -35,6 +36,10 @@ func New() *Metrics {
 			CacheMisses: promauto.NewCounter(prometheus.CounterOpts{
 				Name: "hazelnut_cache_misses_total",
 				Help: "The total number of cache misses",
+			}),
+			CacheBypass: promauto.NewCounter(prometheus.CounterOpts{
+				Name: "hazelnut_cache_bypass_total",
+				Help: "The total number of cache bypasses",
 			}),
 			Errors: promauto.NewCounter(prometheus.CounterOpts{
 				Name: "hazelnut_errors_total",
