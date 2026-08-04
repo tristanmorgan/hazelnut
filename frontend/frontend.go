@@ -93,7 +93,12 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	t0 := time.Now()
 	switch req.Method {
 	case http.MethodGet:
-		s.cacheable(resp, req)
+		upgradeHeader := req.Header.Get("Upgrade")
+		if upgradeHeader == "websocket" {
+			s.websocket(resp, req)
+		} else {
+			s.cacheable(resp, req)
+		}
 	case http.MethodHead:
 		s.cacheable(resp, req)
 	default:
@@ -135,18 +140,10 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Increment cache miss counter
-	s.metrics.CacheMisses.Inc()
-
 	// cache miss. fetch from backend
 	beReq := req.Clone(context.Background())
 	// clear the URI:
 	beReq.RequestURI = ""
-
-	// If original request is HEAD, convert to GET for backend fetch
-	// if req.Method == http.MethodHead {
-	//  	beReq.Method = http.MethodGet
-	// }
 
 	// URL scheme will be set by the backend
 
@@ -158,9 +155,13 @@ func (s *Server) cacheable(resp http.ResponseWriter, req *http.Request) {
 	// If client requested range but we don't have it cached,
 	// pass the range request to backend and stream directly (don't cache)
 	if hasRange {
+		s.metrics.CacheBypass.Inc()
 		s.handleRangeMiss(resp, beReq, rangeHeader, t0)
 		return
 	}
+
+	// Increment cache miss counter
+	s.metrics.CacheMisses.Inc()
 
 	beResp, cacheable := s.backend.Fetch(beReq)
 

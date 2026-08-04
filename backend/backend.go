@@ -15,6 +15,7 @@ import (
 // Fetcher is an interface that both Client and Router implement
 type Fetcher interface {
 	Fetch(req *http.Request) (*http.Response, bool)
+	Dial(req *http.Request) (net.Conn, error)
 }
 
 type Client struct {
@@ -92,6 +93,12 @@ func (c *Client) Fetch(beReq *http.Request) (*http.Response, bool) {
 	return beResp, beResp.StatusCode <= 299
 }
 
+// Dial bypasses the fetcher
+func (c *Client) Dial(beReq *http.Request) (net.Conn, error) {
+	fixedAddr := fmt.Sprintf("%s:%d", c.target, c.port)
+	return net.Dial("tcp", fixedAddr)
+}
+
 // Router manages multiple backend clients based on virtual hosts
 type Router struct {
 	defaultBackend *Client
@@ -133,6 +140,13 @@ func (r *Router) Fetch(beReq *http.Request) (*http.Response, bool) {
 	backend := r.GetBackend(beReq.Host)
 	r.logger.Debug("routing request", "host", beReq.Host, "backend", backend.target)
 	return backend.Fetch(beReq)
+}
+
+// Dial bypasses the fetcher
+func (r *Router) Dial(beReq *http.Request) (net.Conn, error) {
+	c := r.GetBackend(beReq.Host)
+	fixedAddr := fmt.Sprintf("%s:%d", c.target, c.port)
+	return net.Dial("tcp", fixedAddr)
 }
 
 // GetScheme returns the scheme of the default backend
