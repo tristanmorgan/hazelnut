@@ -13,11 +13,11 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	DefaultBackend BackendConfig            `yaml:"default_backend"`
 	VirtualHosts   map[string]BackendConfig `yaml:"virtualhosts"`
 	Frontend       FrontendConfig           `yaml:"frontend"`
-	Cache          CacheConfig              `yaml:"cache"`
 	Logging        LoggingConfig            `yaml:"logging"`
+	Cache          CacheConfig              `yaml:"cache"`
+	DefaultBackend BackendConfig            `yaml:"default_backend"`
 }
 
 type LoggingConfig struct {
@@ -48,9 +48,9 @@ func (bc *BackendConfig) ParseTarget() (string, string, int, error) {
 // FrontendConfig contains frontend-specific configuration
 type FrontendConfig struct {
 	BaseURL     string `yaml:"base_url"`
-	MetricsPort int    `yaml:"metricsport"`
 	Cert        string `yaml:"cert"`
 	Key         string `yaml:"key"`
+	MetricsPort int    `yaml:"metricsport"`
 }
 
 // GetListenAddr returns the formatted listen address

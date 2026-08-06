@@ -7,8 +7,8 @@ import (
 )
 
 type MAPCache struct {
-	mu    sync.RWMutex
 	cache map[string]cache.ObjCore
+	mu    sync.RWMutex
 }
 
 func New() *MAPCache {

@@ -12,6 +12,7 @@ import (
 	"github.com/perbu/hazelnut/config"
 	"github.com/perbu/hazelnut/frontend"
 	"github.com/perbu/hazelnut/metrics"
+	"github.com/perbu/hazelnut/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
 	"net/http"
@@ -98,6 +99,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	if metricsAddr != ":0" {
 		metricsMux := http.NewServeMux()
 		metricsMux.Handle("/metrics", promhttp.Handler())
+		metricsMux.HandleFunc("/health", health)
 
 		metricsServer := &http.Server{
 			Addr:    metricsAddr,
@@ -127,6 +129,12 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		Frontend: f,
 		Metrics:  m,
 	}, nil
+}
+
+// health returns a simple 200 response
+func health(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Server", "Hazelnut/"+version.Version)
+	io.WriteString(w, "Healthy.\n")
 }
 
 // GetActualPort returns the actual port the service is listening on

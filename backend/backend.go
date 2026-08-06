@@ -20,10 +20,10 @@ type Fetcher interface {
 
 type Client struct {
 	httpClient *http.Client
-	target     string
-	port       int
-	scheme     string
 	logger     *slog.Logger
+	target     string
+	scheme     string
+	port       int
 }
 
 // New creates a new backend Client that forces connections to the specified target host and port,
@@ -103,8 +103,8 @@ func (c *Client) Dial(beReq *http.Request) (net.Conn, error) {
 type Router struct {
 	defaultBackend *Client
 	backends       map[string]*Client
-	mu             sync.RWMutex
 	logger         *slog.Logger
+	mu             sync.RWMutex
 }
 
 // NewRouter creates a new backend router with the specified default backend
