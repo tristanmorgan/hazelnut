@@ -93,9 +93,11 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	t0 := time.Now()
 	switch req.Method {
 	case http.MethodGet:
-		upgradeHeader := req.Header.Get("Upgrade")
-		if upgradeHeader == "websocket" {
+		upgrade, accept := req.Header.Get("Upgrade"), req.Header.Get("Accept")
+		if upgrade == "websocket" {
 			s.websocket(resp, req)
+		} else if accept == "text/event-stream" {
+			s.defaultMethod(resp, req)
 		} else {
 			s.cacheable(resp, req)
 		}
