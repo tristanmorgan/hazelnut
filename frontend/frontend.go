@@ -17,10 +17,8 @@ import (
 	"github.com/perbu/hazelnut/backend"
 	"github.com/perbu/hazelnut/cache"
 	"github.com/perbu/hazelnut/metrics"
+	"github.com/perbu/hazelnut/version"
 )
-
-//go:embed .version
-var embeddedVersion string
 
 const (
 	defaultTTL = 5 * time.Minute
@@ -258,7 +256,7 @@ func (s *Server) defaultMethod(resp http.ResponseWriter, req *http.Request) {
 }
 
 func versionString() string {
-	return fmt.Sprintf("hazelnut %s", embeddedVersion)
+	return fmt.Sprintf("hazelnut %s", version.Version)
 }
 
 func headerDenyList() []string {
