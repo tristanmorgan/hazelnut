@@ -2,6 +2,7 @@ package cache
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 )
 
@@ -11,7 +12,7 @@ type ObjCore struct {
 }
 
 // MakeKey takes a http.Request and a flag indicating whether to ignore the host,
-// and returns a 32 byte sha256 hash of the request.
+// and returns a hex-encoded sha256 hash of the request.
 func MakeKey(r *http.Request, ignoreHost bool) string {
 	sh := sha256.New()
 	// Only include the host in the key if we're not ignoring it
@@ -24,6 +25,6 @@ func MakeKey(r *http.Request, ignoreHost bool) string {
 	// Always include the parameters too
 	_, _ = sh.Write([]byte(r.URL.RawQuery))
 	sum := sh.Sum(nil)
-	// Return the key as a string
-	return string(sum)
+	// Return the key as a hex string
+	return hex.EncodeToString(sum)
 }
